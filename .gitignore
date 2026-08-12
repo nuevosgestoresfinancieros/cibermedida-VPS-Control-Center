@@ -1,0 +1,107 @@
+# ==========================================================
+# Cibermedida VPS Control Center
+# Seguridad: secretos y datos de producción
+# ==========================================================
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Credenciales y claves
+.npmrc
+.pypirc
+.netrc
+.my.cnf
+.pgpass
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.kdbx
+*.secret
+
+# SSH / certificados
+.ssh/
+.kube/
+kubeconfig
+kubeconfig.*
+certs/
+certificates/
+secrets/
+credentials
+credentials.*
+credentials/
+
+# Bases de datos y volcados
+*.sql
+*.sql.gz
+*.dump
+*.rdb
+*.archive
+*.archive.gz
+*.sqlite
+*.sqlite3
+*.db
+
+# Backups
+backup/
+backups/
+*.bak
+*.backup
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# Inventarios reales sensibles
+inventory/INVENTORY.json
+inventory/*.real.json
+inventory/*.private.json
+
+# Estado operativo
+state/
+runtime/
+audit/
+logs/
+incidents/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencias / builds
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+.next/
+.cache/
+
+# IDE / sistema
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporales
+tmp/
+temp/
+*.tmp
+
+# Codex / herramientas locales
+.codex/

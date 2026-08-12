@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cibermedida.local/schemas/inventory.schema.json",
+  "title": "Cibermedida VPS Control Center Inventory",
+  "description": "Contrato documental para el inventario futuro de Fase 1. No contiene datos reales del VPS.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "generated_by",
+    "source_mode",
+    "server",
+    "projects",
+    "services",
+    "databases",
+    "repositories",
+    "domains",
+    "certificates",
+    "containers",
+    "ports",
+    "backups"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string"
+    },
+    "source_mode": {
+      "type": "string",
+      "const": "read_only"
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostname",
+        "os",
+        "cpu",
+        "memory",
+        "swap",
+        "storage",
+        "uptime"
+      ],
+      "properties": {
+        "hostname": { "type": ["string", "null"] },
+        "os": { "type": ["string", "null"] },
+        "cpu": { "$ref": "#/$defs/resource_summary" },
+        "memory": { "$ref": "#/$defs/resource_summary" },
+        "swap": { "$ref": "#/$defs/resource_summary" },
+        "storage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/storage_volume" }
+        },
+        "uptime": { "type": ["string", "null"] }
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/project" }
+    },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/service" }
+    },
+    "databases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/database" }
+    },
+    "repositories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/repository" }
+    },
+    "domains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "certificates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/certificate" }
+    },
+    "containers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/container" }
+    },
+    "ports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/port" }
+    },
+    "backups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/backup" }
+    }
+  },
+  "$defs": {
+    "resource_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "details"],
+      "properties": {
+        "status": { "type": ["string", "null"] },
+        "details": { "type": ["object", "null"] }
+      }
+    },
+    "storage_volume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mount", "filesystem", "size", "used", "available"],
+      "properties": {
+        "mount": { "type": ["string", "null"] },
+        "filesystem": { "type": ["string", "null"] },
+        "size": { "type": ["string", "null"] },
+        "used": { "type": ["string", "null"] },
+        "available": { "type": ["string", "null"] }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "path",
+        "repository",
+        "branch",
+        "production_branch",
+        "frontend",
+        "backend",
+        "framework",
+        "runtime",
+        "database",
+        "service",
+        "domain",
+        "health_endpoint",
+        "backup_policy",
+        "deployment_method",
+        "autonomy_level"
+      ],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "path": { "type": ["string", "null"] },
+        "repository": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "production_branch": { "type": ["string", "null"] },
+        "frontend": { "type": ["string", "null"] },
+        "backend": { "type": ["string", "null"] },
+        "framework": { "type": ["string", "null"] },
+        "runtime": { "type": ["string", "null"] },
+        "database": { "type": ["string", "null"] },
+        "service": { "type": ["string", "null"] },
+        "domain": { "type": ["string", "null"] },
+        "health_endpoint": { "type": ["string", "null"] },
+        "backup_policy": { "type": ["string", "null"] },
+        "deployment_method": { "type": ["string", "null"] },
+        "autonomy_level": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "status", "managed_by"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "type": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "managed_by": { "type": ["string", "null"] }
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "name", "project", "status"],
+      "properties": {
+        "engine": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "remote", "branch", "dirty"],
+      "properties": {
+        "path": { "type": ["string", "null"] },
+        "remote": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "dirty": { "type": ["boolean", "null"] }
+      }
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "project", "service", "https"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] },
+        "service": { "type": ["string", "null"] },
+        "https": { "type": ["boolean", "null"] }
+      }
+    },
+    "certificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "issuer", "expiration", "days_remaining", "status"],
+      "properties": {
+        "domain": { "type": ["string", "null"] },
+        "issuer": { "type": ["string", "null"] },
+        "expiration": { "type": ["string", "null"], "format": "date-time" },
+        "days_remaining": { "type": ["integer", "null"] },
+        "status": { "type": ["string", "null"] }
+      }
+    },
+    "container": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "image", "status", "project"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "image": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] }
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "port", "process", "exposure"],
+      "properties": {
+        "protocol": { "type": ["string", "null"] },
+        "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+        "process": { "type": ["string", "null"] },
+        "exposure": { "type": ["string", "null"] }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project",
+        "timestamp",
+        "type",
+        "source",
+        "destination",
+        "size",
+        "checksum",
+        "verified",
+        "restore_tested",
+        "retention",
+        "created_by"
+      ],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] },
+        "timestamp": { "type": ["string", "null"], "format": "date-time" },
+        "type": { "type": ["string", "null"] },
+        "source": { "type": ["string", "null"] },
+        "destination": { "type": ["string", "null"] },
+        "size": { "type": ["string", "null"] },
+        "checksum": { "type": ["string", "null"] },
+        "verified": { "type": ["boolean", "null"] },
+        "restore_tested": { "type": ["boolean", "null"] },
+        "retention": { "type": ["string", "null"] },
+        "created_by": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

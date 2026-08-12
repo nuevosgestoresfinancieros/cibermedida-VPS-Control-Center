@@ -2,148 +2,195 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cibermedida.local/schemas/inventory.schema.json",
   "title": "Cibermedida VPS Control Center Inventory",
-  "description": "Contrato documental para el inventario futuro de Fase 1. No contiene datos reales del VPS.",
+  "description": "Contrato documental para el inventario futuro de Fase 1. No contiene datos reales del VPS y no admite salidas crudas de comandos.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
-    "generated_at",
-    "generated_by",
-    "source_mode",
+    "collection",
+    "redaction",
     "server",
     "projects",
+    "users",
     "services",
+    "systemd",
+    "apache",
+    "pm2",
+    "docker",
     "databases",
     "repositories",
     "domains",
     "certificates",
-    "containers",
     "ports",
-    "backups"
+    "firewall",
+    "backups",
+    "runtimes",
+    "operational_dependencies",
+    "relationships",
+    "errors"
   ],
   "properties": {
-    "schema_version": {
+    "schema_version": { "type": "string", "const": "0.2.0" },
+    "collection": { "$ref": "#/$defs/collection" },
+    "redaction": { "$ref": "#/$defs/redaction" },
+    "server": { "$ref": "#/$defs/server" },
+    "projects": { "type": "array", "items": { "$ref": "#/$defs/project" } },
+    "users": { "type": "array", "items": { "$ref": "#/$defs/local_user" } },
+    "services": { "type": "array", "items": { "$ref": "#/$defs/service" } },
+    "systemd": { "type": "array", "items": { "$ref": "#/$defs/systemd_unit" } },
+    "apache": { "type": "array", "items": { "$ref": "#/$defs/apache_site" } },
+    "pm2": { "type": "array", "items": { "$ref": "#/$defs/pm2_process" } },
+    "docker": { "type": "array", "items": { "$ref": "#/$defs/docker_container" } },
+    "databases": { "type": "array", "items": { "$ref": "#/$defs/database" } },
+    "repositories": { "type": "array", "items": { "$ref": "#/$defs/repository" } },
+    "domains": { "type": "array", "items": { "$ref": "#/$defs/domain" } },
+    "certificates": { "type": "array", "items": { "$ref": "#/$defs/certificate" } },
+    "ports": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+    "firewall": { "type": "array", "items": { "$ref": "#/$defs/firewall_rule" } },
+    "backups": { "type": "array", "items": { "$ref": "#/$defs/backup" } },
+    "runtimes": { "type": "array", "items": { "$ref": "#/$defs/runtime" } },
+    "operational_dependencies": { "type": "array", "items": { "$ref": "#/$defs/operational_dependency" } },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/relationship" } },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+  },
+  "$defs": {
+    "collection_status": {
       "type": "string",
-      "const": "0.1.0"
+      "enum": ["collected", "unknown", "not_available", "permission_denied", "not_collected", "excluded_for_security"]
     },
-    "generated_at": {
+    "sensitivity_level": {
       "type": "string",
-      "format": "date-time"
+      "enum": ["public", "internal", "sensitive", "secret_excluded"]
     },
-    "generated_by": {
-      "type": "string"
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "collector_version", "mode", "policy_version", "host_alias"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "collector_version": { "type": "string" },
+        "mode": { "type": "string", "const": "read_only" },
+        "policy_version": { "type": "string" },
+        "host_alias": { "type": ["string", "null"] }
+      }
     },
-    "source_mode": {
-      "type": "string",
-      "const": "read_only"
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "rules", "fields_redacted"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "rules": { "type": "array", "items": { "type": "string" } },
+        "fields_redacted": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "command_id"],
+      "properties": {
+        "id": { "type": "string" },
+        "command_id": { "type": "string" },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["command_unavailable", "permission_denied", "parse_error", "validation_error", "redaction_error", "not_collected", "excluded_for_security", "unknown"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Mensaje no sensible. No debe contener salidas crudas, secretos, rutas privadas innecesarias ni credenciales."
+        }
+      }
+    },
+    "observed_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collection_status", "sensitivity_level", "source_refs"],
+      "properties": {
+        "collection_status": { "$ref": "#/$defs/collection_status" },
+        "sensitivity_level": { "$ref": "#/$defs/sensitivity_level" },
+        "source_refs": { "type": "array", "items": { "$ref": "#/$defs/source_ref" } },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } }
+      }
     },
     "server": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "hostname",
-        "os",
-        "cpu",
-        "memory",
-        "swap",
-        "storage",
-        "uptime"
-      ],
+      "required": ["metadata", "hostname", "os", "cpu", "memory", "swap", "storage", "uptime"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "hostname": { "type": ["string", "null"] },
-        "os": { "type": ["string", "null"] },
-        "cpu": { "$ref": "#/$defs/resource_summary" },
-        "memory": { "$ref": "#/$defs/resource_summary" },
-        "swap": { "$ref": "#/$defs/resource_summary" },
-        "storage": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/storage_volume" }
-        },
+        "os": { "$ref": "#/$defs/operating_system" },
+        "cpu": { "$ref": "#/$defs/cpu" },
+        "memory": { "$ref": "#/$defs/memory" },
+        "swap": { "$ref": "#/$defs/memory" },
+        "storage": { "type": "array", "items": { "$ref": "#/$defs/storage_volume" } },
         "uptime": { "type": ["string", "null"] }
       }
     },
-    "projects": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/project" }
-    },
-    "services": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/service" }
-    },
-    "databases": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/database" }
-    },
-    "repositories": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/repository" }
-    },
-    "domains": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/domain" }
-    },
-    "certificates": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/certificate" }
-    },
-    "containers": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/container" }
-    },
-    "ports": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/port" }
-    },
-    "backups": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/backup" }
-    }
-  },
-  "$defs": {
-    "resource_summary": {
+    "operating_system": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "details"],
+      "required": ["metadata", "name", "version", "codename", "kernel", "architecture"],
       "properties": {
-        "status": { "type": ["string", "null"] },
-        "details": { "type": ["object", "null"] }
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "name": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "codename": { "type": ["string", "null"] },
+        "kernel": { "type": ["string", "null"] },
+        "architecture": { "type": ["string", "null"] }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "model", "architecture", "cores", "threads"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "model": { "type": ["string", "null"] },
+        "architecture": { "type": ["string", "null"] },
+        "cores": { "type": ["integer", "null"], "minimum": 0 },
+        "threads": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "total_bytes", "used_bytes", "available_bytes"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "total_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "used_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "available_bytes": { "type": ["integer", "null"], "minimum": 0 }
       }
     },
     "storage_volume": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mount", "filesystem", "size", "used", "available"],
+      "required": ["metadata", "mount", "filesystem", "size_bytes", "used_bytes", "available_bytes"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "mount": { "type": ["string", "null"] },
         "filesystem": { "type": ["string", "null"] },
-        "size": { "type": ["string", "null"] },
-        "used": { "type": ["string", "null"] },
-        "available": { "type": ["string", "null"] }
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "used_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "available_bytes": { "type": ["integer", "null"], "minimum": 0 }
       }
     },
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "path",
-        "repository",
-        "branch",
-        "production_branch",
-        "frontend",
-        "backend",
-        "framework",
-        "runtime",
-        "database",
-        "service",
-        "domain",
-        "health_endpoint",
-        "backup_policy",
-        "deployment_method",
-        "autonomy_level"
-      ],
+      "required": ["metadata", "id", "name", "path", "repository", "branch", "production_branch", "frontend", "backend", "framework", "runtime", "database", "service", "domain", "health_endpoint", "backup_policy", "deployment_method", "autonomy_level"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "id": { "type": ["string", "null"] },
         "name": { "type": ["string", "null"] },
         "path": { "type": ["string", "null"] },
@@ -163,44 +210,123 @@
         "autonomy_level": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 }
       }
     },
+    "local_user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "name", "uid", "type", "groups", "shell"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "name": { "type": ["string", "null"] },
+        "uid": { "type": ["integer", "null"], "minimum": 0 },
+        "type": { "type": ["string", "null"], "enum": ["system", "human", "service", "unknown", null] },
+        "groups": { "type": "array", "items": { "type": "string" } },
+        "shell": { "type": ["string", "null"] }
+      }
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "type", "status", "managed_by"],
+      "required": ["metadata", "name", "type", "status", "managed_by"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "name": { "type": ["string", "null"] },
         "type": { "type": ["string", "null"] },
         "status": { "type": ["string", "null"] },
         "managed_by": { "type": ["string", "null"] }
       }
     },
+    "systemd_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "name", "load_state", "active_state", "sub_state", "unit_file_state", "description"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "name": { "type": ["string", "null"] },
+        "load_state": { "type": ["string", "null"] },
+        "active_state": { "type": ["string", "null"] },
+        "sub_state": { "type": ["string", "null"] },
+        "unit_file_state": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "apache_site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "server_name", "server_aliases", "port", "document_root", "proxy_target", "enabled", "https"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "server_name": { "type": ["string", "null"] },
+        "server_aliases": { "type": "array", "items": { "type": "string" } },
+        "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+        "document_root": { "type": ["string", "null"] },
+        "proxy_target": { "type": ["string", "null"] },
+        "enabled": { "type": ["boolean", "null"] },
+        "https": { "type": ["boolean", "null"] }
+      }
+    },
+    "pm2_process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "name", "status", "runtime", "restart_count", "memory_bytes", "project"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "name": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "runtime": { "type": ["string", "null"] },
+        "restart_count": { "type": ["integer", "null"], "minimum": 0 },
+        "memory_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "project": { "type": ["string", "null"] }
+      }
+    },
+    "docker_container": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "id", "name", "image", "status", "project", "ports", "compose_project"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "image": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] },
+        "ports": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 65535 } },
+        "compose_project": { "type": ["string", "null"] }
+      }
+    },
     "database": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["engine", "name", "project", "status"],
+      "required": ["metadata", "engine", "version", "name", "project", "status", "host", "port"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "engine": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
         "name": { "type": ["string", "null"] },
         "project": { "type": ["string", "null"] },
-        "status": { "type": ["string", "null"] }
+        "status": { "type": ["string", "null"] },
+        "host": { "type": ["string", "null"] },
+        "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 }
       }
     },
     "repository": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "remote", "branch", "dirty"],
+      "required": ["metadata", "path", "remote", "branch", "head_commit", "dirty"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "path": { "type": ["string", "null"] },
         "remote": { "type": ["string", "null"] },
         "branch": { "type": ["string", "null"] },
+        "head_commit": { "type": ["string", "null"] },
         "dirty": { "type": ["boolean", "null"] }
       }
     },
     "domain": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "project", "service", "https"],
+      "required": ["metadata", "name", "project", "service", "https"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "name": { "type": ["string", "null"] },
         "project": { "type": ["string", "null"] },
         "service": { "type": ["string", "null"] },
@@ -210,8 +336,9 @@
     "certificate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["domain", "issuer", "expiration", "days_remaining", "status"],
+      "required": ["metadata", "domain", "issuer", "expiration", "days_remaining", "status"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "domain": { "type": ["string", "null"] },
         "issuer": { "type": ["string", "null"] },
         "expiration": { "type": ["string", "null"], "format": "date-time" },
@@ -219,47 +346,39 @@
         "status": { "type": ["string", "null"] }
       }
     },
-    "container": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "name", "image", "status", "project"],
-      "properties": {
-        "id": { "type": ["string", "null"] },
-        "name": { "type": ["string", "null"] },
-        "image": { "type": ["string", "null"] },
-        "status": { "type": ["string", "null"] },
-        "project": { "type": ["string", "null"] }
-      }
-    },
     "port": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["protocol", "port", "process", "exposure"],
+      "required": ["metadata", "protocol", "port", "process", "exposure", "bind_address_class"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "protocol": { "type": ["string", "null"] },
         "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
         "process": { "type": ["string", "null"] },
-        "exposure": { "type": ["string", "null"] }
+        "exposure": { "type": ["string", "null"], "enum": ["public", "local", "private", "unknown", null] },
+        "bind_address_class": { "type": ["string", "null"], "enum": ["any", "loopback", "private", "public", "unknown", null] }
+      }
+    },
+    "firewall_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "provider", "action", "protocol", "port", "source", "status"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "provider": { "type": ["string", "null"] },
+        "action": { "type": ["string", "null"] },
+        "protocol": { "type": ["string", "null"] },
+        "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
+        "source": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] }
       }
     },
     "backup": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "project",
-        "timestamp",
-        "type",
-        "source",
-        "destination",
-        "size",
-        "checksum",
-        "verified",
-        "restore_tested",
-        "retention",
-        "created_by"
-      ],
+      "required": ["metadata", "id", "project", "timestamp", "type", "source", "destination", "size", "checksum", "verified", "restore_tested", "retention", "created_by"],
       "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
         "id": { "type": ["string", "null"] },
         "project": { "type": ["string", "null"] },
         "timestamp": { "type": ["string", "null"], "format": "date-time" },
@@ -272,6 +391,44 @@
         "restore_tested": { "type": ["boolean", "null"] },
         "retention": { "type": ["string", "null"] },
         "created_by": { "type": ["string", "null"] }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "name", "version", "manager", "project"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "name": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "manager": { "type": ["string", "null"] },
+        "project": { "type": ["string", "null"] }
+      }
+    },
+    "operational_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "id", "type", "name", "version", "used_by"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "id": { "type": ["string", "null"] },
+        "type": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "used_by": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metadata", "from_type", "from_id", "to_type", "to_id", "relationship_type"],
+      "properties": {
+        "metadata": { "$ref": "#/$defs/observed_metadata" },
+        "from_type": { "type": "string", "enum": ["project", "service", "port", "domain", "certificate", "database", "repository", "runtime", "container"] },
+        "from_id": { "type": ["string", "null"] },
+        "to_type": { "type": "string", "enum": ["project", "service", "port", "domain", "certificate", "database", "repository", "runtime", "container"] },
+        "to_id": { "type": ["string", "null"] },
+        "relationship_type": { "type": "string", "enum": ["uses", "managed_by", "exposes", "serves", "terminates_tls_for", "backs", "depends_on", "runs_in", "stored_in"] }
       }
     }
   }

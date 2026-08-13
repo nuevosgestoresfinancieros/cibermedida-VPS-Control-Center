@@ -265,6 +265,32 @@ class InventoryValidationTests(unittest.TestCase):
         self.assertEqual(inventory["repositories"][0]["metadata"]["collection_status"], "unknown")
         self.assertEqual(inventory["repositories"][0]["head_commit"], "abcdef123456")
 
+    def test_generated_source_refs_use_known_command_ids(self) -> None:
+        inventory = build_inventory({"git.head_commit": CommandResult("git.head_commit", 0, "abcdef123456\n", "")}, host_alias="synthetic-host")
+        allowed_internal_ids = {"phase1.read_safe", "system.os_release"}
+        allowed_command_ids = set(COMMANDS) | allowed_internal_ids
+
+        def walk(value: object) -> list[str]:
+            found: list[str] = []
+            if isinstance(value, dict):
+                source_refs = value.get("source_refs")
+                if isinstance(source_refs, list):
+                    for source_ref in source_refs:
+                        if isinstance(source_ref, dict) and isinstance(source_ref.get("command_id"), str):
+                            found.append(source_ref["command_id"])
+                for child in value.values():
+                    found.extend(walk(child))
+            elif isinstance(value, list):
+                for child in value:
+                    found.extend(walk(child))
+            return found
+
+        source_ref_ids = walk(inventory)
+        self.assertIn("system.cpu_summary", source_ref_ids)
+        self.assertNotIn("system.cpu", source_ref_ids)
+        self.assertTrue(source_ref_ids)
+        self.assertEqual(set(source_ref_ids) - allowed_command_ids, set())
+
     def test_pipeline_complete_a2_with_mocks(self) -> None:
         command_results = a2_results()
 

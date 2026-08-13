@@ -92,7 +92,7 @@ def _not_collected_os() -> dict[str, Any]:
 
 def _not_collected_cpu() -> dict[str, Any]:
     return {
-        "metadata": _not_collected_meta("system.cpu"),
+        "metadata": _not_collected_meta("system.cpu_summary"),
         "model": None,
         "architecture": None,
         "cores": None,

@@ -46,6 +46,27 @@ READ_SAFE_COMMANDS: Mapping[str, CommandSpec] = {
         timeout_seconds=5,
         description="Uptime and load summary",
     ),
+    "system.kernel": CommandSpec(
+        id="system.kernel",
+        command_class=CommandClass.READ_SAFE,
+        argv=("uname", "-r"),
+        timeout_seconds=5,
+        description="Kernel release",
+    ),
+    "system.architecture": CommandSpec(
+        id="system.architecture",
+        command_class=CommandClass.READ_SAFE,
+        argv=("uname", "-m"),
+        timeout_seconds=5,
+        description="Machine architecture",
+    ),
+    "system.cpu_summary": CommandSpec(
+        id="system.cpu_summary",
+        command_class=CommandClass.READ_SAFE,
+        argv=("lscpu", "-J"),
+        timeout_seconds=5,
+        description="CPU summary in JSON with approved fields only",
+    ),
     "git.status": CommandSpec(
         id="git.status",
         command_class=CommandClass.READ_SAFE,
@@ -53,30 +74,16 @@ READ_SAFE_COMMANDS: Mapping[str, CommandSpec] = {
         timeout_seconds=5,
         description="Repository branch and dirty status",
     ),
-    "git.diff_stat": CommandSpec(
-        id="git.diff_stat",
+    "git.head_commit": CommandSpec(
+        id="git.head_commit",
         command_class=CommandClass.READ_SAFE,
-        argv=("git", "diff", "--stat"),
+        argv=("git", "rev-parse", "--short=12", "HEAD"),
         timeout_seconds=5,
-        description="Repository diff summary only",
-    ),
-    "git.log_recent": CommandSpec(
-        id="git.log_recent",
-        command_class=CommandClass.READ_SAFE,
-        argv=("git", "log", "--oneline", "-n", "5"),
-        timeout_seconds=5,
-        description="Recent repository commits with bounded count",
+        description="Current repository HEAD short hash",
     ),
 }
 
 BLOCKED_COMMANDS: Mapping[str, CommandSpec] = {
-    "system.os_release": CommandSpec(
-        id="system.os_release",
-        command_class=CommandClass.READ_SENSITIVE,
-        argv=("cat", "/etc/os-release"),
-        timeout_seconds=5,
-        description="Operating system release metadata",
-    ),
     "system.ports": CommandSpec(
         id="system.ports",
         command_class=CommandClass.READ_SENSITIVE,

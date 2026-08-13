@@ -17,12 +17,15 @@ Allowlist documental para Fase 1 de inventario READ ONLY. Esta política no es t
 
 | ID lógico | Comando / patrón | Requiere sudo | Datos obtenidos | Riesgo | Redacción requerida |
 |---|---|---:|---|---|---|
-| `git_status_project` | `git status --short --branch` en repos autorizados | No | Rama y estado de cambios | Bajo | Redactar rutas si contienen nombres sensibles |
-| `git_log_project` | `git log --oneline -n <limit>` en repos autorizados | No | Commits recientes | Bajo | No incluir mensajes si contienen secretos; limitar líneas |
-| `git_diff_project` | `git diff --stat` en repos autorizados | No | Resumen de cambios | Bajo | No guardar diff completo en inventario |
-| `disk_usage` | `df -B1 --output=source,fstype,size,used,avail,pcent,target` | No | Uso de filesystems montados | Bajo | Redactar mounts sensibles si aparecen |
-| `memory_usage` | `free -b` | No | RAM y swap | Bajo | Ninguna |
-| `uptime` | `uptime` | No | Uptime y carga resumida | Bajo | Ninguna |
+| `system.disk_usage` | `df -B1 --output=source,fstype,size,used,avail,pcent,target` | No | Uso de filesystems montados | Bajo | Redactar mounts sensibles si aparecen |
+| `system.memory` | `free -b` | No | RAM y swap | Bajo | Ninguna |
+| `system.uptime` | `uptime` | No | Uptime y carga resumida | Bajo | Ninguna |
+| `system.os_release` | Collector interno sin shell, con ruta fija `/etc/os-release` | No | `NAME`, `ID`, `VERSION_ID`, `VERSION_CODENAME` | Bajo | Descarta cualquier otra clave; no acepta rutas externas |
+| `system.kernel` | `uname -r` | No | Kernel | Bajo | No aplica |
+| `system.architecture` | `uname -m` | No | Arquitectura de maquina | Bajo | No aplica |
+| `system.cpu_summary` | `lscpu -J` | No | Arquitectura, modelo, CPUs logicas, sockets, cores/socket, threads/core | Bajo | Descartar flags, vulnerabilidades, caches, NUMA detallado y campos no aprobados |
+| `git.status` | `git status --short --branch` en `/var/www/cibermedida-vps-control-center` | No | Rama y estado de cambios | Bajo | No guardar nombres de ficheros modificados |
+| `git.head_commit` | `git rev-parse --short=12 HEAD` en `/var/www/cibermedida-vps-control-center` | No | Hash HEAD corto validado como hexadecimal, maximo 12 caracteres | Bajo | Rechazar salida inesperada |
 | `systemd_status_unit` | `systemctl status <unit> --no-pager` | No | Estado acotado de unidad conocida | Bajo/medio | No guardar logs embebidos; extraer solo estado |
 | `docker_ps` | `docker ps --format <campos_aprobados>` | No | Contenedores en ejecución, imagen, estado y puertos publicados | Medio | No incluir env, labels, mounts ni inspect crudo |
 | `pm2_status` | `pm2 status` | No | Procesos PM2 y estado | Medio | No guardar paths o argumentos sensibles |
@@ -32,9 +35,6 @@ Allowlist documental para Fase 1 de inventario READ ONLY. Esta política no es t
 
 | ID lógico | Comando / patrón | Requiere sudo | Datos obtenidos | Riesgo | Redacción requerida |
 |---|---|---:|---|---|---|
-| `os_release` | Lectura de `/etc/os-release` mediante parser acotado | No | Nombre y versión de SO | Bajo | No aplica |
-| `kernel_version` | `uname -r` / `uname -m` | No | Kernel y arquitectura | Bajo | No aplica |
-| `cpu_summary` | `lscpu` con campos aprobados | No | CPU, cores, arquitectura | Bajo | No incluir flags si no son necesarias |
 | `systemd_list_units` | `systemctl list-units --type=service --all --no-pager` | No | Servicios y estado | Medio | No incluir propiedades ni environment |
 | `systemd_list_unit_files` | `systemctl list-unit-files --type=service --no-pager` | No | Enabled/disabled de servicios | Medio | No incluir contenido de unidades |
 | `ports_summary` | `ss` con formato limitado, sin usuarios ni args | No | Puertos y procesos resumidos | Medio/alto | Redactar IPs; no usar `-e`; no guardar PIDs si no son necesarios |

@@ -5,7 +5,17 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
-from .normalizers import metadata, normalize_disk_usage, normalize_git_status, normalize_memory, normalize_uptime
+from .normalizers import (
+    metadata,
+    normalize_architecture,
+    normalize_cpu_summary,
+    normalize_disk_usage,
+    normalize_kernel,
+    normalize_memory,
+    normalize_os_release,
+    normalize_repository,
+    normalize_uptime,
+)
 from .redaction import redact
 
 COLLECTOR_VERSION = "0.1.0"
@@ -14,6 +24,15 @@ POLICY_VERSION = "phase-1-read-safe-0.1"
 
 def build_inventory(results: Mapping[str, Any], host_alias: str | None = None) -> dict[str, Any]:
     memory_parts = normalize_memory(results["system.memory"]) if "system.memory" in results else None
+    os_release = normalize_os_release(results["system.os_release"]) if "system.os_release" in results else _not_collected_os()
+    if "system.kernel" in results:
+        os_release["kernel"] = normalize_kernel(results["system.kernel"])
+    if "system.architecture" in results:
+        os_release["architecture"] = normalize_architecture(results["system.architecture"])
+    cpu = normalize_cpu_summary(results["system.cpu_summary"]) if "system.cpu_summary" in results else _not_collected_cpu()
+    repositories = []
+    if "git.status" in results or "git.head_commit" in results:
+        repositories.append(normalize_repository(results.get("git.status"), results.get("git.head_commit")))
     inventory = {
         "schema_version": "0.2.0",
         "collection": {
@@ -27,8 +46,8 @@ def build_inventory(results: Mapping[str, Any], host_alias: str | None = None) -
         "server": {
             "metadata": metadata("phase1.read_safe"),
             "hostname": None,
-            "os": _not_collected_os(),
-            "cpu": _not_collected_cpu(),
+            "os": os_release,
+            "cpu": cpu,
             "memory": memory_parts["memory"] if memory_parts else _not_collected_memory(),
             "swap": memory_parts["swap"] if memory_parts else _not_collected_memory(),
             "storage": normalize_disk_usage(results["system.disk_usage"]) if "system.disk_usage" in results else [],
@@ -42,7 +61,7 @@ def build_inventory(results: Mapping[str, Any], host_alias: str | None = None) -
         "pm2": [],
         "docker": [],
         "databases": [],
-        "repositories": [normalize_git_status(results["git.status"])] if "git.status" in results else [],
+        "repositories": repositories,
         "domains": [],
         "certificates": [],
         "ports": [],
@@ -72,7 +91,17 @@ def _not_collected_os() -> dict[str, Any]:
 
 
 def _not_collected_cpu() -> dict[str, Any]:
-    return {"metadata": _not_collected_meta("system.cpu"), "model": None, "architecture": None, "cores": None, "threads": None}
+    return {
+        "metadata": _not_collected_meta("system.cpu"),
+        "model": None,
+        "architecture": None,
+        "cores": None,
+        "threads": None,
+        "logical_cpus": None,
+        "sockets": None,
+        "cores_per_socket": None,
+        "threads_per_core": None,
+    }
 
 
 def _not_collected_memory() -> dict[str, Any]:

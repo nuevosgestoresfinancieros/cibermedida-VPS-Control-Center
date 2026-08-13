@@ -126,7 +126,7 @@ No deben instalarse dependencias durante Fase 1 sin autorización explícita.
 
 ## Fuentes
 
-El inventario debe registrar fuentes como identificadores lógicos de comandos definidos en `policies/command-allowlist.md`, por ejemplo `disk_usage`, `memory_usage` o `docker_ps`.
+El inventario debe registrar fuentes como identificadores lógicos de comandos definidos en `policies/command-allowlist.md`, por ejemplo `system.disk_usage`, `system.memory` o `system.cpu_summary`.
 
 No debe registrar:
 

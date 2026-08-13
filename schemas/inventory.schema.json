@@ -152,13 +152,17 @@
     "cpu": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["metadata", "model", "architecture", "cores", "threads"],
+      "required": ["metadata", "model", "architecture", "cores", "threads", "logical_cpus", "sockets", "cores_per_socket", "threads_per_core"],
       "properties": {
         "metadata": { "$ref": "#/$defs/observed_metadata" },
         "model": { "type": ["string", "null"] },
         "architecture": { "type": ["string", "null"] },
         "cores": { "type": ["integer", "null"], "minimum": 0 },
-        "threads": { "type": ["integer", "null"], "minimum": 0 }
+        "threads": { "type": ["integer", "null"], "minimum": 0 },
+        "logical_cpus": { "type": ["integer", "null"], "minimum": 0 },
+        "sockets": { "type": ["integer", "null"], "minimum": 0 },
+        "cores_per_socket": { "type": ["integer", "null"], "minimum": 0 },
+        "threads_per_core": { "type": ["integer", "null"], "minimum": 0 }
       }
     },
     "memory": {

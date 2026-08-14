@@ -151,3 +151,22 @@ Quedan fuera del inventario por defecto:
 - consultas lógicas a bases de datos de aplicación;
 - volcados completos de firewall;
 - `machine-id` sin redacción irreversible.
+
+## Cierre READ_SAFE Básico
+
+Se realizaron ejecuciones reales controladas de Fase 1 READ_SAFE, limitadas a estos comandos:
+
+- `system.disk_usage`;
+- `system.memory`;
+- `system.uptime`;
+- `system.kernel`;
+- `system.architecture`;
+- `system.cpu_summary`;
+- `git.status`;
+- `git.head_commit`.
+
+Todas las ejecuciones pasaron schema validation y secret scan. No se creó `INVENTORY.json`, no hubo persistencia, no se usó `sudo` y no se ejecutaron comandos `READ_SENSITIVE`, `READ_PRIVILEGED` ni `FORBIDDEN`.
+
+Durante este cierre básico no se leyeron secretos, logs, backups ni bases de datos. `git.diff_stat` y `git.log_recent` quedan fuera del cierre READ_SAFE básico porque no son necesarios para el inventario seguro de metadatos Git.
+
+La siguiente ampliación recomendada es valorar READ_SAFE adicional o preparar Fase 2 Core Operator. Antes de Fase 2 debe quedar explícito que el inventario persistido oficial sigue pendiente o requiere autorización separada.

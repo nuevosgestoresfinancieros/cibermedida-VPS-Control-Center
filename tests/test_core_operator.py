@@ -1,0 +1,179 @@
+from __future__ import annotations
+
+import ast
+import unittest
+from pathlib import Path
+
+from core_operator.audit import InMemoryAuditStore
+from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
+from core_operator.executor_adapter import ReadSafeExecutorAdapter
+from core_operator.health import CoreHealthChecker
+from core_operator.policy import Decision, PolicyEngine, PolicyRequest, RiskLevel
+from core_operator.safe_logging import InMemoryStructuredLogger
+from phase1_inventory.commands import CommandClass
+from phase1_inventory.executor import CommandResult
+
+ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = ROOT / "core_operator"
+
+
+class FakeExecutor:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def execute(self, command_id: str) -> CommandResult:
+        self.calls.append(command_id)
+        return CommandResult(command_id, 0, "password=raw-secret stdout", "token=raw-secret stderr")
+
+
+class ConfigTests(unittest.TestCase):
+    def test_default_config_is_safe_and_valid(self) -> None:
+        config = default_config()
+        self.assertEqual(config.project_root, AUTHORIZED_PROJECT_ROOT)
+        self.assertFalse(config.persistence_enabled)
+        self.assertFalse(config.log_to_disk)
+        self.assertFalse(config.audit_to_disk)
+        self.assertFalse(config.load_environment_files)
+        self.assertFalse(config.allow_network_health_checks)
+
+    def test_disk_persistence_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            OperatorConfig(persistence_enabled=True).validate()
+        with self.assertRaises(ValueError):
+            OperatorConfig(log_to_disk=True).validate()
+        with self.assertRaises(ValueError):
+            OperatorConfig(audit_to_disk=True).validate()
+
+    def test_env_loading_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            OperatorConfig(load_environment_files=True).validate()
+
+
+class PolicyEngineTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.policy = PolicyEngine()
+
+    def test_read_safe_is_allowed(self) -> None:
+        decision = self.policy.evaluate(PolicyRequest(actor="tester", action="read", command_id="system.memory"))
+        self.assertEqual(decision.decision, Decision.ALLOW)
+        self.assertEqual(decision.risk_level, RiskLevel.LOW)
+        self.assertFalse(decision.authorization_required)
+
+    def test_read_sensitive_requires_authorization(self) -> None:
+        decision = self.policy.evaluate(PolicyRequest(actor="tester", action="read", command_id="system.ports"))
+        self.assertEqual(decision.decision, Decision.APPROVAL_REQUIRED)
+        self.assertTrue(decision.authorization_required)
+
+    def test_read_privileged_requires_authorization(self) -> None:
+        decision = self.policy.evaluate(PolicyRequest(actor="tester", action="read", command_class=CommandClass.READ_PRIVILEGED))
+        self.assertEqual(decision.decision, Decision.APPROVAL_REQUIRED)
+        self.assertEqual(decision.risk_level, RiskLevel.HIGH)
+
+    def test_forbidden_is_denied(self) -> None:
+        decision = self.policy.evaluate(PolicyRequest(actor="tester", action="read", command_id="forbidden.docker_inspect"))
+        self.assertEqual(decision.decision, Decision.DENY)
+        self.assertEqual(decision.risk_level, RiskLevel.CRITICAL)
+
+    def test_modifying_actions_are_denied_by_default(self) -> None:
+        actions = ("deploy", "rollback", "restart_service", "modify_apache", "write_file", "create_backup")
+        for action in actions:
+            with self.subTest(action=action):
+                decision = self.policy.evaluate(PolicyRequest(actor="tester", action=action, command_class=CommandClass.READ_SAFE))
+                self.assertEqual(decision.decision, Decision.DENY)
+                self.assertTrue(decision.authorization_required)
+
+
+class AuditAndLoggingTests(unittest.TestCase):
+    def test_audit_event_has_required_fields_and_redacts_secrets(self) -> None:
+        audit = InMemoryAuditStore()
+        event = audit.append(
+            actor="operator token=syntheticSecret12345",
+            action="read",
+            risk_level=RiskLevel.LOW,
+            command_id="system.memory",
+            result="ok password=syntheticSecret12345",
+            authorization_required=False,
+        )
+        self.assertEqual(len(audit.events), 1)
+        self.assertTrue(event.timestamp)
+        self.assertEqual(event.risk_level, RiskLevel.LOW)
+        self.assertFalse(event.authorization_required)
+        self.assertNotIn("syntheticSecret12345", str(event))
+
+    def test_logger_redacts_without_raw_stdout_or_stderr_contract(self) -> None:
+        logger = InMemoryStructuredLogger()
+        logger.log(
+            "info",
+            "completed Authorization: Bearer fictitiousTokenValue12345",
+            stdout="password=do-not-log",
+            stderr="token=do-not-log",
+            command_id="system.memory",
+        )
+        record = logger.records[0]
+        self.assertNotIn("fictitiousTokenValue12345", str(record))
+        self.assertNotIn("do-not-log", str(record))
+        self.assertEqual(record.fields["command_id"], "system.memory")
+
+
+class HealthTests(unittest.TestCase):
+    def test_internal_health_checks_only_core_components(self) -> None:
+        result = CoreHealthChecker(
+            config=default_config(),
+            policy=PolicyEngine(),
+            audit=InMemoryAuditStore(),
+            logger=InMemoryStructuredLogger(),
+        ).check()
+        self.assertTrue(result.healthy)
+        self.assertTrue(result.checks["config_initialized"])
+        self.assertTrue(result.checks["network_health_checks_disabled"])
+
+
+class ExecutorAdapterTests(unittest.TestCase):
+    def test_read_safe_adapter_uses_injected_executor_and_audits_metadata_only(self) -> None:
+        fake = FakeExecutor()
+        audit = InMemoryAuditStore()
+        logger = InMemoryStructuredLogger()
+        envelope = ReadSafeExecutorAdapter(policy=PolicyEngine(), audit=audit, logger=logger, executor=fake).execute(
+            actor="tester", command_id="system.memory"
+        )
+        self.assertEqual(envelope.decision, Decision.ALLOW)
+        self.assertEqual(fake.calls, ["system.memory"])
+        self.assertEqual(audit.events[0].result, "success")
+        self.assertNotIn("raw-secret", str(audit.events))
+        self.assertNotIn("raw-secret", str(logger.records))
+
+    def test_adapter_does_not_call_executor_when_policy_blocks(self) -> None:
+        fake = FakeExecutor()
+        envelope = ReadSafeExecutorAdapter(
+            policy=PolicyEngine(),
+            audit=InMemoryAuditStore(),
+            logger=InMemoryStructuredLogger(),
+            executor=fake,
+        ).execute(actor="tester", command_id="system.ports")
+        self.assertEqual(envelope.decision, Decision.APPROVAL_REQUIRED)
+        self.assertEqual(fake.calls, [])
+
+
+class StaticSafetyTests(unittest.TestCase):
+    def test_core_operator_has_no_forbidden_execution_primitives(self) -> None:
+        forbidden_names = {"eval", "exec"}
+        forbidden_attributes = {("os", "system")}
+        for path in PACKAGE.glob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name):
+                        self.assertNotIn(node.func.id, forbidden_names, path)
+                    if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+                        self.assertNotIn((node.func.value.id, node.func.attr), forbidden_attributes, path)
+
+    def test_core_operator_does_not_import_subprocess(self) -> None:
+        for path in PACKAGE.glob("*.py"):
+            source = path.read_text(encoding="utf-8")
+            self.assertNotIn("import subprocess", source)
+            self.assertNotIn("shell=True", source)
+            self.assertNotIn("sudo", source)
+
+
+if __name__ == "__main__":
+    unittest.main()

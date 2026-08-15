@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import ast
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from core_operator.audit import InMemoryAuditStore
+from core_operator.audit import InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
 from core_operator.health import CoreHealthChecker
@@ -33,16 +35,41 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(config.persistence_enabled)
         self.assertFalse(config.log_to_disk)
         self.assertFalse(config.audit_to_disk)
+        self.assertIsNone(config.audit_path)
         self.assertFalse(config.load_environment_files)
         self.assertFalse(config.allow_network_health_checks)
 
-    def test_disk_persistence_is_rejected(self) -> None:
+    def test_disk_persistence_is_disabled_by_default(self) -> None:
+        with self.assertRaises(ValueError):
+            JsonlAuditStore(config=default_config())
+        with self.assertRaises(ValueError):
+            OperatorConfig(audit_to_disk=True, audit_path=Path("audit.jsonl")).validate()
         with self.assertRaises(ValueError):
             OperatorConfig(persistence_enabled=True).validate()
         with self.assertRaises(ValueError):
             OperatorConfig(log_to_disk=True).validate()
+
+    def test_audit_path_must_stay_inside_project(self) -> None:
         with self.assertRaises(ValueError):
-            OperatorConfig(audit_to_disk=True).validate()
+            OperatorConfig(
+                persistence_enabled=True,
+                audit_to_disk=True,
+                audit_path=Path("../audit.jsonl"),
+            ).validate()
+        with self.assertRaises(ValueError):
+            OperatorConfig(
+                persistence_enabled=True,
+                audit_to_disk=True,
+                audit_path=Path("/tmp/audit.jsonl"),
+            ).validate()
+
+    def test_audit_path_rejects_critical_files(self) -> None:
+        with self.assertRaises(ValueError):
+            OperatorConfig(
+                persistence_enabled=True,
+                audit_to_disk=True,
+                audit_path=Path("INVENTORY.json"),
+            ).validate()
 
     def test_env_loading_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -100,6 +127,74 @@ class AuditAndLoggingTests(unittest.TestCase):
         self.assertFalse(event.authorization_required)
         self.assertNotIn("syntheticSecret12345", str(event))
 
+    def test_jsonl_audit_store_writes_valid_json_when_explicitly_enabled(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            audit_path = Path(temp_dir) / "audit.jsonl"
+            store = JsonlAuditStore(
+                config=OperatorConfig(
+                    persistence_enabled=True,
+                    audit_to_disk=True,
+                    audit_path=audit_path,
+                )
+            )
+            event = store.append(
+                actor="tester",
+                action="execute_read_safe",
+                risk_level=RiskLevel.LOW,
+                command_id="system.memory",
+                result="success",
+                authorization_required=False,
+            )
+            lines = audit_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1)
+            record = json.loads(lines[0])
+            self.assertEqual(record["actor"], "tester")
+            self.assertEqual(record["risk_level"], "LOW")
+            self.assertEqual(record["command_id"], "system.memory")
+            self.assertEqual(store.events, (event,))
+
+    def test_jsonl_audit_store_fails_closed_on_secret_like_content(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            audit_path = Path(temp_dir) / "audit.jsonl"
+            store = JsonlAuditStore(
+                config=OperatorConfig(
+                    persistence_enabled=True,
+                    audit_to_disk=True,
+                    audit_path=audit_path,
+                )
+            )
+            with self.assertRaises(UnsafeAuditEventError):
+                store.append(
+                    actor="tester token=fictitiousSecretValue12345",
+                    action="execute_read_safe",
+                    risk_level=RiskLevel.LOW,
+                    command_id="system.memory",
+                    result="success",
+                    authorization_required=False,
+                )
+            self.assertFalse(audit_path.exists())
+
+    def test_jsonl_audit_store_rejects_raw_stdout_or_stderr(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            audit_path = Path(temp_dir) / "audit.jsonl"
+            store = JsonlAuditStore(
+                config=OperatorConfig(
+                    persistence_enabled=True,
+                    audit_to_disk=True,
+                    audit_path=audit_path,
+                )
+            )
+            with self.assertRaises(UnsafeAuditEventError):
+                store.append(
+                    actor="tester",
+                    action="execute_read_safe",
+                    risk_level=RiskLevel.LOW,
+                    command_id="system.memory",
+                    result="stdout=raw output",
+                    authorization_required=False,
+                )
+            self.assertFalse(audit_path.exists())
+
     def test_logger_redacts_without_raw_stdout_or_stderr_contract(self) -> None:
         logger = InMemoryStructuredLogger()
         logger.log(
@@ -142,6 +237,28 @@ class ExecutorAdapterTests(unittest.TestCase):
         self.assertNotIn("raw-secret", str(audit.events))
         self.assertNotIn("raw-secret", str(logger.records))
 
+    def test_read_safe_adapter_persists_metadata_without_raw_streams(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            audit_path = Path(temp_dir) / "audit.jsonl"
+            audit = JsonlAuditStore(
+                config=OperatorConfig(
+                    persistence_enabled=True,
+                    audit_to_disk=True,
+                    audit_path=audit_path,
+                )
+            )
+            envelope = ReadSafeExecutorAdapter(
+                policy=PolicyEngine(),
+                audit=audit,
+                logger=InMemoryStructuredLogger(),
+                executor=FakeExecutor(),
+            ).execute(actor="tester", command_id="system.memory")
+            self.assertEqual(envelope.decision, Decision.ALLOW)
+            payload = audit_path.read_text(encoding="utf-8")
+            self.assertNotIn("raw-secret", payload)
+            self.assertNotIn("stdout", payload.lower())
+            self.assertNotIn("stderr", payload.lower())
+
     def test_adapter_does_not_call_executor_when_policy_blocks(self) -> None:
         fake = FakeExecutor()
         envelope = ReadSafeExecutorAdapter(
@@ -167,7 +284,7 @@ class StaticSafetyTests(unittest.TestCase):
                     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
                         self.assertNotIn((node.func.value.id, node.func.attr), forbidden_attributes, path)
 
-    def test_core_operator_does_not_import_subprocess(self) -> None:
+    def test_core_operator_does_not_import_subprocess_or_use_shell_sudo(self) -> None:
         for path in PACKAGE.glob("*.py"):
             source = path.read_text(encoding="utf-8")
             self.assertNotIn("import subprocess", source)

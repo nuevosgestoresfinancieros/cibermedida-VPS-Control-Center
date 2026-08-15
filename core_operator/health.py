@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .audit import InMemoryAuditStore
+from .audit import AuditStore
 from .config import OperatorConfig
 from .policy import PolicyEngine
 from .safe_logging import InMemoryStructuredLogger
@@ -26,7 +26,7 @@ class CoreHealthChecker:
         *,
         config: OperatorConfig,
         policy: PolicyEngine,
-        audit: InMemoryAuditStore,
+        audit: AuditStore,
         logger: InMemoryStructuredLogger,
     ) -> None:
         self.config = config

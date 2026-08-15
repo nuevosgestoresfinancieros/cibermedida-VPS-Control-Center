@@ -7,7 +7,7 @@ from typing import Protocol
 
 from phase1_inventory.executor import CommandResult, RestrictedExecutor
 
-from .audit import InMemoryAuditStore
+from .audit import AuditStore
 from .policy import Decision, PolicyEngine, PolicyRequest
 from .safe_logging import InMemoryStructuredLogger
 
@@ -33,7 +33,7 @@ class ReadSafeExecutorAdapter:
         self,
         *,
         policy: PolicyEngine,
-        audit: InMemoryAuditStore,
+        audit: AuditStore,
         logger: InMemoryStructuredLogger,
         executor: ReadSafeExecutor | None = None,
     ) -> None:

@@ -8,6 +8,7 @@ from typing import Protocol
 from phase1_inventory.executor import CommandResult, RestrictedExecutor
 
 from .audit import AuditStore
+from .approvals import ApprovalRequest, ApprovalStore, InMemoryApprovalStore
 from .policy import Decision, PolicyEngine, PolicyRequest
 from .safe_logging import InMemoryStructuredLogger
 
@@ -22,6 +23,7 @@ class ExecutionEnvelope:
     decision: Decision
     result: CommandResult | None
     reason: str
+    approval_request: ApprovalRequest | None = None
 
 
 class PolicyDeniedError(PermissionError):
@@ -36,15 +38,23 @@ class ReadSafeExecutorAdapter:
         audit: AuditStore,
         logger: InMemoryStructuredLogger,
         executor: ReadSafeExecutor | None = None,
+        approvals: ApprovalStore | None = None,
     ) -> None:
         self.policy = policy
         self.audit = audit
         self.logger = logger
         self.executor = executor or RestrictedExecutor()
+        self.approvals = approvals or InMemoryApprovalStore(audit=audit)
 
     def execute(self, *, actor: str, command_id: str) -> ExecutionEnvelope:
         policy_decision = self.policy.evaluate(PolicyRequest(actor=actor, action="execute_read_safe", command_id=command_id))
         if policy_decision.decision is not Decision.ALLOW:
+            approval_request = self.approvals.apply_policy_decision(
+                actor=actor,
+                action="execute_read_safe",
+                policy_decision=policy_decision,
+                command_id=command_id,
+            )
             self.audit.append(
                 actor=actor,
                 action="execute_read_safe",
@@ -54,7 +64,7 @@ class ReadSafeExecutorAdapter:
                 authorization_required=policy_decision.authorization_required,
             )
             self.logger.log("warning", "executor request blocked", command_id=command_id, decision=policy_decision.decision.value)
-            return ExecutionEnvelope(policy_decision.decision, None, policy_decision.reason)
+            return ExecutionEnvelope(policy_decision.decision, None, policy_decision.reason, approval_request)
 
         result = self.executor.execute(command_id)
         audit_result = "success" if result.returncode == 0 and not result.error_code else "failed"

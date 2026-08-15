@@ -4,9 +4,11 @@ import ast
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from core_operator.audit import InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
+from core_operator.approvals import ApprovalStateError, ApprovalStatus, InMemoryApprovalStore
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
 from core_operator.health import CoreHealthChecker
@@ -108,6 +110,152 @@ class PolicyEngineTests(unittest.TestCase):
                 decision = self.policy.evaluate(PolicyRequest(actor="tester", action=action, command_class=CommandClass.READ_SAFE))
                 self.assertEqual(decision.decision, Decision.DENY)
                 self.assertTrue(decision.authorization_required)
+
+
+class ApprovalWorkflowTests(unittest.TestCase):
+    def test_read_safe_does_not_create_approval(self) -> None:
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        decision = PolicyEngine().evaluate(PolicyRequest(actor="tester", action="read", command_id="system.memory"))
+        request = approvals.apply_policy_decision(
+            actor="tester",
+            action="execute_read_safe",
+            policy_decision=decision,
+            command_id="system.memory",
+        )
+        self.assertIsNone(request)
+        self.assertEqual(approvals.requests, ())
+
+    def test_read_sensitive_generates_pending_approval_without_execution(self) -> None:
+        fake = FakeExecutor()
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        envelope = ReadSafeExecutorAdapter(
+            policy=PolicyEngine(),
+            audit=audit,
+            logger=InMemoryStructuredLogger(),
+            executor=fake,
+            approvals=approvals,
+        ).execute(actor="tester", command_id="system.ports")
+        self.assertEqual(envelope.decision, Decision.APPROVAL_REQUIRED)
+        self.assertIsNotNone(envelope.approval_request)
+        self.assertEqual(envelope.approval_request.status, ApprovalStatus.PENDING)
+        self.assertEqual(fake.calls, [])
+
+    def test_read_privileged_generates_pending_approval(self) -> None:
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        decision = PolicyEngine().evaluate(
+            PolicyRequest(actor="tester", action="read", command_class=CommandClass.READ_PRIVILEGED)
+        )
+        request = approvals.apply_policy_decision(
+            actor="tester",
+            action="read",
+            policy_decision=decision,
+        )
+        self.assertIsNotNone(request)
+        self.assertEqual(request.status, ApprovalStatus.PENDING)
+        self.assertEqual(request.risk_level, RiskLevel.HIGH)
+
+    def test_forbidden_creates_denied_request_that_cannot_be_approved(self) -> None:
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        decision = PolicyEngine().evaluate(
+            PolicyRequest(actor="tester", action="read", command_id="forbidden.docker_inspect")
+        )
+        request = approvals.apply_policy_decision(
+            actor="tester",
+            action="read",
+            policy_decision=decision,
+            command_id="forbidden.docker_inspect",
+        )
+        self.assertIsNotNone(request)
+        self.assertEqual(request.status, ApprovalStatus.DENIED)
+        with self.assertRaises(ApprovalStateError):
+            approvals.approve(request.id, decided_by="admin")
+
+    def test_modifying_action_is_never_executed(self) -> None:
+        fake = FakeExecutor()
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        decision = PolicyEngine().evaluate(
+            PolicyRequest(actor="tester", action="write_file", command_class=CommandClass.READ_SAFE)
+        )
+        request = approvals.apply_policy_decision(
+            actor="tester",
+            action="write_file",
+            policy_decision=decision,
+        )
+        self.assertIn(decision.decision, {Decision.DENY, Decision.APPROVAL_REQUIRED})
+        self.assertIsNotNone(request)
+        self.assertIn(request.status, {ApprovalStatus.DENIED, ApprovalStatus.PENDING})
+        self.assertEqual(fake.calls, [])
+
+    def test_approve_changes_state(self) -> None:
+        approvals = InMemoryApprovalStore(audit=InMemoryAuditStore())
+        request = approvals.create_pending(
+            actor="tester",
+            action="read",
+            risk_level=RiskLevel.MEDIUM,
+            reason="needs authorization",
+        )
+        decision = approvals.approve(request.id, decided_by="admin")
+        self.assertEqual(decision.status, ApprovalStatus.APPROVED)
+        self.assertEqual(approvals.requests[0].status, ApprovalStatus.APPROVED)
+
+    def test_deny_changes_state(self) -> None:
+        approvals = InMemoryApprovalStore(audit=InMemoryAuditStore())
+        request = approvals.create_pending(
+            actor="tester",
+            action="read",
+            risk_level=RiskLevel.MEDIUM,
+            reason="needs authorization",
+        )
+        decision = approvals.deny(request.id, decided_by="admin")
+        self.assertEqual(decision.status, ApprovalStatus.DENIED)
+        self.assertEqual(approvals.requests[0].status, ApprovalStatus.DENIED)
+
+    def test_cannot_approve_twice(self) -> None:
+        approvals = InMemoryApprovalStore(audit=InMemoryAuditStore())
+        request = approvals.create_pending(
+            actor="tester",
+            action="read",
+            risk_level=RiskLevel.MEDIUM,
+            reason="needs authorization",
+        )
+        approvals.approve(request.id, decided_by="admin")
+        with self.assertRaises(ApprovalStateError):
+            approvals.approve(request.id, decided_by="admin")
+
+    def test_audit_receives_non_sensitive_approval_events(self) -> None:
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        request = approvals.create_pending(
+            actor="tester token=syntheticSecret12345",
+            action="read",
+            risk_level=RiskLevel.MEDIUM,
+            reason="needs authorization",
+            command_id="system.ports",
+        )
+        approvals.deny(request.id, decided_by="admin password=syntheticSecret12345")
+        actions = [event.action for event in audit.events]
+        self.assertEqual(actions, ["approval_requested", "approval_denied"])
+        self.assertNotIn("syntheticSecret12345", str(audit.events))
+        self.assertNotIn("stdout", str(audit.events).lower())
+        self.assertNotIn("stderr", str(audit.events).lower())
+
+    def test_in_memory_approval_store_does_not_write_to_disk(self) -> None:
+        audit = InMemoryAuditStore()
+        approvals = InMemoryApprovalStore(audit=audit)
+        with patch("pathlib.Path.open", side_effect=AssertionError("disk write attempted")):
+            request = approvals.create_pending(
+                actor="tester",
+                action="read",
+                risk_level=RiskLevel.MEDIUM,
+                reason="needs authorization",
+            )
+            approvals.approve(request.id, decided_by="admin")
+        self.assertEqual(approvals.requests[0].status, ApprovalStatus.APPROVED)
 
 
 class AuditAndLoggingTests(unittest.TestCase):

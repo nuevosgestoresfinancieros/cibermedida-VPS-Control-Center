@@ -17,6 +17,7 @@ class ApprovalStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
+    EXPIRED = "expired"
 
 
 @dataclass(frozen=True)

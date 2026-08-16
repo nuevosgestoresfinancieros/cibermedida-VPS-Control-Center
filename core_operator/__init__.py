@@ -1,6 +1,7 @@
 """Safe Core Operator primitives for Phase 2."""
 
 from .audit import AuditEvent, AuditStore, InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
+from .approved_execution import ApprovedExecutionPlan, ApprovedExecutionPlanner, ExecutionPlanState
 from .approvals import (
     ApprovalDecision,
     ApprovalRequest,
@@ -18,6 +19,8 @@ from .safe_logging import InMemoryStructuredLogger, LogRecord
 __all__ = [
     "AuditEvent",
     "AuditStore",
+    "ApprovedExecutionPlan",
+    "ApprovedExecutionPlanner",
     "ApprovalDecision",
     "ApprovalRequest",
     "ApprovalStateError",
@@ -25,6 +28,7 @@ __all__ = [
     "ApprovalStore",
     "CoreHealthChecker",
     "Decision",
+    "ExecutionPlanState",
     "HealthCheckResult",
     "InMemoryAuditStore",
     "InMemoryApprovalStore",

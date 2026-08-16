@@ -3,36 +3,45 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cibermedida VPS Control Center - Phase 3.0 Read-only shell</title>
+    <title>Cibermedida VPS Control Center - Phase 3.1 Static read-only data</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Production protected</p>
-        <h1>Cibermedida VPS Control Center</h1>
-        <p class="subtitle">Phase 3.0 Read-only shell</p>
+        <p class="eyebrow" data-product-context>Production protected</p>
+        <h1 data-product-name>Cibermedida VPS Control Center</h1>
+        <p class="subtitle" data-product-phase>Phase 3.1 Static read-only data</p>
       </div>
-      <div class="status-pill" aria-label="Execution status">No real execution</div>
+      <div class="status-pill" aria-label="Execution status" data-execution-status>Real execution blocked</div>
     </header>
 
     <main>
-      <section class="hero-grid" aria-label="Project phase status">
-        <article class="phase-card complete">
-          <span class="phase-index">Phase 1</span>
-          <h2>READ_SAFE basic completed</h2>
-          <p>Minimal authorized inventory commands were validated without persisted inventory output.</p>
-        </article>
-        <article class="phase-card complete">
-          <span class="phase-index">Phase 2</span>
-          <h2>Core Operator closed</h2>
-          <p>Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place.</p>
-        </article>
-        <article class="phase-card current">
-          <span class="phase-index">Phase 3</span>
-          <h2>Web read-only initiated</h2>
-          <p>This interface presents safe metadata and documentation state only.</p>
-        </article>
+      <section class="hero-grid" aria-label="Project phase status" data-phases></section>
+
+      <section class="panel data-panel" aria-labelledby="data-source-title">
+        <div class="section-heading">
+          <p class="eyebrow">Static source</p>
+          <h2 id="data-source-title">Versioned mock data</h2>
+        </div>
+        <dl class="source-preview">
+          <div>
+            <dt>mode</dt>
+            <dd data-source-mode>static mock</dd>
+          </div>
+          <div>
+            <dt>source</dt>
+            <dd data-source-path>web/readonly-shell/data/status.json</dd>
+          </div>
+          <div>
+            <dt>live data</dt>
+            <dd data-source-live>no</dd>
+          </div>
+          <div>
+            <dt>backend</dt>
+            <dd data-source-backend>no</dd>
+          </div>
+        </dl>
       </section>
 
       <section class="panel chain-panel" aria-labelledby="security-chain-title">
@@ -40,14 +49,7 @@
           <p class="eyebrow">Control chain</p>
           <h2 id="security-chain-title">Security chain</h2>
         </div>
-        <ol class="chain">
-          <li><span>Policy</span></li>
-          <li><span>Approval</span></li>
-          <li><span>ApprovedExecutionPlan</span></li>
-          <li><span>DryRun</span></li>
-          <li><span>ExecutionGate</span></li>
-          <li><span>ControlledExecutor</span><strong>blocked_by_default</strong></li>
-        </ol>
+        <ol class="chain" data-chain></ol>
       </section>
 
       <section class="dashboard-grid">
@@ -56,18 +58,7 @@
             <p class="eyebrow">Implemented</p>
             <h2>Core Operator components</h2>
           </div>
-          <ul class="component-list">
-            <li>OperatorConfig</li>
-            <li>safe logging</li>
-            <li>audit</li>
-            <li>PolicyEngine</li>
-            <li>ReadSafeExecutorAdapter</li>
-            <li>Approval workflow</li>
-            <li>ApprovedExecutionPlan</li>
-            <li>ApprovedPlanDryRunner</li>
-            <li>ExecutionGate</li>
-            <li>ControlledExecutor</li>
-          </ul>
+          <ul class="component-list" data-components></ul>
         </article>
 
         <article class="panel">
@@ -75,14 +66,7 @@
             <p class="eyebrow">Blocked by design</p>
             <h2>Safety boundaries</h2>
           </div>
-          <ul class="blocked-list">
-            <li>No real execution</li>
-            <li>No elevated shell access</li>
-            <li>No secrets</li>
-            <li>No logs, backups, or database data</li>
-            <li>No service modification</li>
-            <li>No automatic INVENTORY.json</li>
-          </ul>
+          <ul class="blocked-list" data-blocked></ul>
         </article>
       </section>
 
@@ -101,38 +85,7 @@
                 <th>UI treatment</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td>READ_SAFE</td>
-                <td><span class="decision allow">allow</span></td>
-                <td>Metadata only</td>
-                <td>Visible as read-only status</td>
-              </tr>
-              <tr>
-                <td>READ_SENSITIVE</td>
-                <td><span class="decision pending">approval_required</span></td>
-                <td>Not automatic</td>
-                <td>Shown as gated</td>
-              </tr>
-              <tr>
-                <td>READ_PRIVILEGED</td>
-                <td><span class="decision pending">approval_required</span></td>
-                <td>Not automatic</td>
-                <td>Shown as gated</td>
-              </tr>
-              <tr>
-                <td>FORBIDDEN</td>
-                <td><span class="decision deny">deny</span></td>
-                <td>Blocked</td>
-                <td>Shown as rejected</td>
-              </tr>
-              <tr>
-                <td>modifying actions</td>
-                <td><span class="decision deny">deny</span></td>
-                <td>Blocked</td>
-                <td>Shown as rejected</td>
-              </tr>
-            </tbody>
+            <tbody data-policy-matrix></tbody>
           </table>
         </div>
       </section>
@@ -143,13 +96,7 @@
             <p class="eyebrow">UI capabilities</p>
             <h2>Read-only surface</h2>
           </div>
-          <ul class="capability-list">
-            <li>View status</li>
-            <li>View documentation summary</li>
-            <li>View policy states</li>
-            <li>View metadata-only audit examples</li>
-            <li>No execution controls enabled</li>
-          </ul>
+          <ul class="capability-list" data-capabilities></ul>
         </article>
 
         <article class="panel audit-panel">
@@ -157,26 +104,10 @@
             <p class="eyebrow">Metadata-only audit example</p>
             <h2>Safe event preview</h2>
           </div>
-          <dl class="audit-preview">
-            <div>
-              <dt>action</dt>
-              <dd>execution_gate_evaluated</dd>
-            </div>
-            <div>
-              <dt>risk</dt>
-              <dd>LOW</dd>
-            </div>
-            <div>
-              <dt>result</dt>
-              <dd>blocked_by_default</dd>
-            </div>
-            <div>
-              <dt>content</dt>
-              <dd>metadata only</dd>
-            </div>
-          </dl>
+          <dl class="audit-preview" data-audit-preview></dl>
         </article>
       </section>
     </main>
+    <script src="./app.js"></script>
   </body>
 </html>

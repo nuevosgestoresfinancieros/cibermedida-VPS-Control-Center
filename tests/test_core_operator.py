@@ -9,7 +9,8 @@ from unittest.mock import patch
 from pathlib import Path
 
 from core_operator.audit import InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
-from core_operator.approved_execution import ApprovedExecutionPlanner, ExecutionPlanState
+from core_operator.approved_plan_dry_runner import ApprovedPlanDryRunner, DryRunExecutionState
+from core_operator.approved_execution import ApprovedExecutionPlan, ApprovedExecutionPlanner, ExecutionPlanState
 from core_operator.approvals import ApprovalStateError, ApprovalStatus, InMemoryApprovalStore
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
@@ -404,6 +405,87 @@ class ApprovedExecutionContractTests(unittest.TestCase):
         self.assertNotIn("syntheticSecret12345", str(self.audit.events))
         self.assertNotIn("stdout", str(self.audit.events).lower())
         self.assertNotIn("stderr", str(self.audit.events).lower())
+
+
+class ApprovedPlanDryRunnerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.audit = InMemoryAuditStore()
+        self.runner = ApprovedPlanDryRunner(policy=PolicyEngine(), audit=self.audit)
+
+    def _plan(
+        self,
+        *,
+        state: ExecutionPlanState = ExecutionPlanState.READY_TO_EXECUTE,
+        actor: str = "tester",
+        action: str = "execute_read_safe",
+        command_id: str = "system.memory",
+        risk_level: RiskLevel = RiskLevel.LOW,
+        approval_id: str | None = "approval-1",
+        reason: str = "approved execution plan is ready",
+    ):
+        return ApprovedExecutionPlan(
+            state=state,
+            actor=actor,
+            action=action,
+            command_id=command_id,
+            risk_level=risk_level,
+            approval_id=approval_id,
+            reason=reason,
+        )
+
+    def test_ready_to_execute_allowed_produces_completed_dry_run(self) -> None:
+        result = self.runner.dry_run(self._plan())
+        self.assertEqual(result.state, DryRunExecutionState.COMPLETED)
+        self.assertEqual(result.command_id, "system.memory")
+        self.assertEqual([event.action for event in self.audit.events], ["dry_run_started", "dry_run_completed"])
+
+    def test_blocked_plan_does_not_run(self) -> None:
+        result = self.runner.dry_run(self._plan(state=ExecutionPlanState.BLOCKED))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("blocked", result.reason)
+        self.assertEqual([event.action for event in self.audit.events], ["dry_run_blocked"])
+
+    def test_rejected_plan_does_not_run(self) -> None:
+        result = self.runner.dry_run(self._plan(state=ExecutionPlanState.REJECTED))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("rejected", result.reason)
+        self.assertEqual([event.action for event in self.audit.events], ["dry_run_blocked"])
+
+    def test_forbidden_command_blocks_dry_run(self) -> None:
+        result = self.runner.dry_run(self._plan(command_id="forbidden.docker_inspect", risk_level=RiskLevel.CRITICAL))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("FORBIDDEN", result.reason)
+        self.assertEqual(self.audit.events[-1].action, "dry_run_blocked")
+
+    def test_modifying_action_blocks_dry_run(self) -> None:
+        result = self.runner.dry_run(self._plan(action="write_file"))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("modifying actions", result.reason)
+        self.assertEqual(self.audit.events[-1].action, "dry_run_blocked")
+
+    def test_secret_like_metadata_blocks_dry_run(self) -> None:
+        result = self.runner.dry_run(self._plan(actor="tester token=syntheticSecret12345"))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("secret-like", result.reason)
+        self.assertNotIn("syntheticSecret12345", str(self.audit.events))
+
+    def test_risk_above_limit_blocks_dry_run(self) -> None:
+        result = self.runner.dry_run(self._plan(risk_level=RiskLevel.HIGH))
+        self.assertEqual(result.state, DryRunExecutionState.BLOCKED)
+        self.assertIn("risk", result.reason)
+
+    def test_dry_runner_never_calls_real_executor(self) -> None:
+        fake = FakeExecutor()
+        result = self.runner.dry_run(self._plan())
+        self.assertEqual(result.state, DryRunExecutionState.COMPLETED)
+        self.assertEqual(fake.calls, [])
+
+    def test_dry_run_audit_is_metadata_only(self) -> None:
+        self.runner.dry_run(self._plan())
+        payload = str(self.audit.events).lower()
+        self.assertNotIn("stdout", payload)
+        self.assertNotIn("stderr", payload)
+        self.assertNotIn("raw-secret", payload)
 
 
 class AuditAndLoggingTests(unittest.TestCase):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
 import json
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from core_operator.audit import InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
+from core_operator.approved_execution import ApprovedExecutionPlanner, ExecutionPlanState
 from core_operator.approvals import ApprovalStateError, ApprovalStatus, InMemoryApprovalStore
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
@@ -256,6 +258,152 @@ class ApprovalWorkflowTests(unittest.TestCase):
             )
             approvals.approve(request.id, decided_by="admin")
         self.assertEqual(approvals.requests[0].status, ApprovalStatus.APPROVED)
+
+
+class ApprovedExecutionContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.audit = InMemoryAuditStore()
+        self.approvals = InMemoryApprovalStore(audit=self.audit)
+        self.planner = ApprovedExecutionPlanner(policy=PolicyEngine(), approvals=self.approvals, audit=self.audit)
+
+    def _approval(self, *, actor: str = "tester", action: str = "execute_read_safe", command_id: str = "system.memory"):
+        return self.approvals.create_pending(
+            actor=actor,
+            action=action,
+            risk_level=RiskLevel.LOW,
+            reason="plan authorization",
+            command_id=command_id,
+        )
+
+    def _approved_request(self):
+        request = self._approval()
+        self.approvals.approve(request.id, decided_by="admin")
+        return self.approvals.get(request.id)
+
+    def test_approved_matching_approval_builds_ready_plan(self) -> None:
+        request = self._approved_request()
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.READY_TO_EXECUTE)
+        self.assertEqual(plan.approval_id, request.id)
+        self.assertEqual(plan.command_id, "system.memory")
+
+    def test_pending_approval_blocks_plan(self) -> None:
+        request = self._approval()
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("pending", plan.reason)
+
+    def test_denied_approval_blocks_plan(self) -> None:
+        request = self._approval()
+        self.approvals.deny(request.id, decided_by="admin")
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("denied", plan.reason)
+
+    def test_expired_approval_blocks_plan(self) -> None:
+        request = self._approval()
+        self.approvals._requests[request.id] = replace(request, status=ApprovalStatus.EXPIRED)
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("expired", plan.reason)
+
+    def test_forbidden_command_is_rejected_even_with_approval(self) -> None:
+        request = self._approval(command_id="forbidden.docker_inspect")
+        self.approvals.approve(request.id, decided_by="admin")
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="forbidden.docker_inspect",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.REJECTED)
+        self.assertEqual(plan.risk_level, RiskLevel.CRITICAL)
+
+    def test_different_command_id_blocks_plan(self) -> None:
+        request = self._approved_request()
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.disk_usage",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("command", plan.reason)
+
+    def test_different_action_blocks_plan(self) -> None:
+        request = self._approved_request()
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="read",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("action", plan.reason)
+
+    def test_different_actor_blocks_plan(self) -> None:
+        request = self._approved_request()
+        plan = self.planner.build_plan(
+            actor="other",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("actor", plan.reason)
+
+    def test_planner_never_calls_real_executor(self) -> None:
+        fake = FakeExecutor()
+        request = self._approved_request()
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.READY_TO_EXECUTE)
+        self.assertEqual(fake.calls, [])
+
+    def test_execution_plan_audit_is_metadata_only(self) -> None:
+        request = self.approvals.create_pending(
+            actor="tester token=syntheticSecret12345",
+            action="execute_read_safe",
+            risk_level=RiskLevel.LOW,
+            reason="plan authorization",
+            command_id="system.memory",
+        )
+        self.approvals.approve(request.id, decided_by="admin password=syntheticSecret12345")
+        plan = self.planner.build_plan(
+            actor="tester token=syntheticSecret12345",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.READY_TO_EXECUTE)
+        self.assertEqual(self.audit.events[-1].action, "approved_execution_plan_evaluated")
+        self.assertNotIn("syntheticSecret12345", str(self.audit.events))
+        self.assertNotIn("stdout", str(self.audit.events).lower())
+        self.assertNotIn("stderr", str(self.audit.events).lower())
 
 
 class AuditAndLoggingTests(unittest.TestCase):

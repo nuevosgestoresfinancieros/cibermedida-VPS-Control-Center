@@ -12,6 +12,7 @@ from .approvals import (
     InMemoryApprovalStore,
 )
 from .config import OperatorConfig, default_config
+from .controlled_executor import ControlledExecutionResult, ControlledExecutionState, ControlledExecutor
 from .execution_gate import ExecutionGate, ExecutionGateDecision, ExecutionGateState
 from .executor_adapter import ReadSafeExecutorAdapter
 from .health import CoreHealthChecker, HealthCheckResult
@@ -30,6 +31,9 @@ __all__ = [
     "ApprovalStatus",
     "ApprovalStore",
     "CoreHealthChecker",
+    "ControlledExecutionResult",
+    "ControlledExecutionState",
+    "ControlledExecutor",
     "Decision",
     "DryRunExecutionResult",
     "DryRunExecutionState",

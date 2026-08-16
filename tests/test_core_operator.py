@@ -9,10 +9,11 @@ from unittest.mock import patch
 from pathlib import Path
 
 from core_operator.audit import InMemoryAuditStore, JsonlAuditStore, UnsafeAuditEventError
-from core_operator.approved_plan_dry_runner import ApprovedPlanDryRunner, DryRunExecutionState
+from core_operator.approved_plan_dry_runner import ApprovedPlanDryRunner, DryRunExecutionResult, DryRunExecutionState
 from core_operator.approved_execution import ApprovedExecutionPlan, ApprovedExecutionPlanner, ExecutionPlanState
 from core_operator.approvals import ApprovalStateError, ApprovalStatus, InMemoryApprovalStore
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
+from core_operator.execution_gate import ExecutionGate, ExecutionGateDecision, ExecutionGateState
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
 from core_operator.health import CoreHealthChecker
 from core_operator.policy import Decision, PolicyEngine, PolicyRequest, RiskLevel
@@ -482,6 +483,148 @@ class ApprovedPlanDryRunnerTests(unittest.TestCase):
 
     def test_dry_run_audit_is_metadata_only(self) -> None:
         self.runner.dry_run(self._plan())
+        payload = str(self.audit.events).lower()
+        self.assertNotIn("stdout", payload)
+        self.assertNotIn("stderr", payload)
+        self.assertNotIn("raw-secret", payload)
+
+
+
+class ExecutionGateTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.audit = InMemoryAuditStore()
+        self.gate = ExecutionGate(policy=PolicyEngine(), audit=self.audit)
+
+    def _plan(
+        self,
+        *,
+        state: ExecutionPlanState = ExecutionPlanState.READY_TO_EXECUTE,
+        actor: str = "tester",
+        action: str = "execute_read_safe",
+        command_id: str = "system.memory",
+        risk_level: RiskLevel = RiskLevel.LOW,
+        approval_id: str | None = "approval-1",
+        reason: str = "approved execution plan is ready",
+    ):
+        return ApprovedExecutionPlan(
+            state=state,
+            actor=actor,
+            action=action,
+            command_id=command_id,
+            risk_level=risk_level,
+            approval_id=approval_id,
+            reason=reason,
+        )
+
+    def _dry_run(
+        self,
+        *,
+        state: DryRunExecutionState = DryRunExecutionState.COMPLETED,
+        actor: str = "tester",
+        action: str = "execute_read_safe",
+        command_id: str = "system.memory",
+        risk_level: RiskLevel = RiskLevel.LOW,
+        approval_id: str | None = "approval-1",
+        reason: str = "dry run completed",
+    ):
+        return DryRunExecutionResult(
+            state=state,
+            actor=actor,
+            action=action,
+            command_id=command_id,
+            risk_level=risk_level,
+            approval_id=approval_id,
+            reason=reason,
+        )
+
+    def test_completed_dry_run_with_valid_metadata_is_eligible(self) -> None:
+        decision = self.gate.evaluate(plan=self._plan(), dry_run=self._dry_run())
+        self.assertIsInstance(decision, ExecutionGateDecision)
+        self.assertEqual(decision.state, ExecutionGateState.ELIGIBLE_FOR_CONTROLLED_EXECUTION)
+        self.assertEqual(
+            [event.action for event in self.audit.events],
+            ["execution_gate_evaluated", "execution_gate_eligible"],
+        )
+
+    def test_blocked_dry_run_blocks_gate(self) -> None:
+        decision = self.gate.evaluate(plan=self._plan(), dry_run=self._dry_run(state=DryRunExecutionState.BLOCKED))
+        self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+        self.assertIn("dry run", decision.reason)
+        self.assertEqual(self.audit.events[-1].action, "execution_gate_blocked")
+
+    def test_blocked_or_rejected_plan_blocks_gate(self) -> None:
+        for state in (ExecutionPlanState.BLOCKED, ExecutionPlanState.REJECTED):
+            with self.subTest(state=state):
+                audit = InMemoryAuditStore()
+                decision = ExecutionGate(policy=PolicyEngine(), audit=audit).evaluate(
+                    plan=self._plan(state=state),
+                    dry_run=self._dry_run(),
+                )
+                self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+                self.assertEqual(audit.events[-1].action, "execution_gate_blocked")
+
+    def test_forbidden_command_rejects_gate(self) -> None:
+        decision = self.gate.evaluate(
+            plan=self._plan(command_id="forbidden.docker_inspect", risk_level=RiskLevel.CRITICAL),
+            dry_run=self._dry_run(command_id="forbidden.docker_inspect", risk_level=RiskLevel.CRITICAL),
+        )
+        self.assertEqual(decision.state, ExecutionGateState.REJECTED)
+        self.assertIn("FORBIDDEN", decision.reason)
+        self.assertEqual(self.audit.events[-1].action, "execution_gate_rejected")
+
+    def test_modifying_action_rejects_gate(self) -> None:
+        decision = self.gate.evaluate(
+            plan=self._plan(action="write_file"),
+            dry_run=self._dry_run(action="write_file"),
+        )
+        self.assertEqual(decision.state, ExecutionGateState.REJECTED)
+        self.assertIn("modifying actions", decision.reason)
+
+    def test_high_risk_blocks_gate(self) -> None:
+        decision = self.gate.evaluate(
+            plan=self._plan(risk_level=RiskLevel.HIGH),
+            dry_run=self._dry_run(risk_level=RiskLevel.HIGH),
+        )
+        self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+        self.assertIn("risk", decision.reason)
+
+    def test_missing_approval_blocks_gate(self) -> None:
+        decision = self.gate.evaluate(
+            plan=self._plan(approval_id=None),
+            dry_run=self._dry_run(approval_id=None),
+        )
+        self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+        self.assertIn("approval", decision.reason)
+
+    def test_command_id_or_action_mismatch_blocks_gate(self) -> None:
+        cases = (
+            (self._plan(), self._dry_run(command_id="system.disk_usage"), "command"),
+            (self._plan(), self._dry_run(action="read"), "action"),
+        )
+        for plan, dry_run, expected_reason in cases:
+            with self.subTest(expected_reason=expected_reason):
+                audit = InMemoryAuditStore()
+                decision = ExecutionGate(policy=PolicyEngine(), audit=audit).evaluate(plan=plan, dry_run=dry_run)
+                self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+                self.assertIn(expected_reason, decision.reason)
+
+    def test_secret_like_metadata_blocks_gate(self) -> None:
+        decision = self.gate.evaluate(
+            plan=self._plan(actor="tester token=syntheticSecret12345"),
+            dry_run=self._dry_run(actor="tester token=syntheticSecret12345"),
+        )
+        self.assertEqual(decision.state, ExecutionGateState.BLOCKED)
+        self.assertIn("secret-like", decision.reason)
+        self.assertNotIn("syntheticSecret12345", str(self.audit.events))
+
+    def test_execution_gate_never_calls_real_executor(self) -> None:
+        fake = FakeExecutor()
+        decision = self.gate.evaluate(plan=self._plan(), dry_run=self._dry_run())
+        self.assertEqual(decision.state, ExecutionGateState.ELIGIBLE_FOR_CONTROLLED_EXECUTION)
+        self.assertEqual(fake.calls, [])
+
+    def test_execution_gate_audit_is_metadata_only(self) -> None:
+        self.gate.evaluate(plan=self._plan(), dry_run=self._dry_run())
         payload = str(self.audit.events).lower()
         self.assertNotIn("stdout", payload)
         self.assertNotIn("stderr", payload)

@@ -13,6 +13,7 @@ from core_operator.approved_plan_dry_runner import ApprovedPlanDryRunner, DryRun
 from core_operator.approved_execution import ApprovedExecutionPlan, ApprovedExecutionPlanner, ExecutionPlanState
 from core_operator.approvals import ApprovalStateError, ApprovalStatus, InMemoryApprovalStore
 from core_operator.config import AUTHORIZED_PROJECT_ROOT, OperatorConfig, default_config
+from core_operator.controlled_executor import ControlledExecutionResult, ControlledExecutionState, ControlledExecutor
 from core_operator.execution_gate import ExecutionGate, ExecutionGateDecision, ExecutionGateState
 from core_operator.executor_adapter import ReadSafeExecutorAdapter
 from core_operator.health import CoreHealthChecker
@@ -625,6 +626,93 @@ class ExecutionGateTests(unittest.TestCase):
 
     def test_execution_gate_audit_is_metadata_only(self) -> None:
         self.gate.evaluate(plan=self._plan(), dry_run=self._dry_run())
+        payload = str(self.audit.events).lower()
+        self.assertNotIn("stdout", payload)
+        self.assertNotIn("stderr", payload)
+        self.assertNotIn("raw-secret", payload)
+
+
+
+class ControlledExecutorContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.audit = InMemoryAuditStore()
+        self.controlled_executor = ControlledExecutor(policy=PolicyEngine(), audit=self.audit)
+
+    def _decision(
+        self,
+        *,
+        state: ExecutionGateState = ExecutionGateState.ELIGIBLE_FOR_CONTROLLED_EXECUTION,
+        actor: str = "tester",
+        action: str = "execute_read_safe",
+        command_id: str = "system.memory",
+        risk_level: RiskLevel = RiskLevel.LOW,
+        approval_id: str | None = "approval-1",
+        reason: str = "eligible for controlled execution",
+    ):
+        return ExecutionGateDecision(
+            state=state,
+            actor=actor,
+            action=action,
+            command_id=command_id,
+            risk_level=risk_level,
+            approval_id=approval_id,
+            reason=reason,
+        )
+
+    def test_eligible_gate_decision_is_blocked_by_default(self) -> None:
+        result = self.controlled_executor.execute(self._decision())
+        self.assertIsInstance(result, ControlledExecutionResult)
+        self.assertEqual(result.state, ControlledExecutionState.BLOCKED_BY_DEFAULT)
+        self.assertIn("blocked by default", result.reason)
+        self.assertEqual(
+            [event.action for event in self.audit.events],
+            ["controlled_execution_requested", "controlled_execution_blocked"],
+        )
+
+    def test_gate_blocked_or_rejected_is_rejected(self) -> None:
+        for state in (ExecutionGateState.BLOCKED, ExecutionGateState.REJECTED):
+            with self.subTest(state=state):
+                audit = InMemoryAuditStore()
+                result = ControlledExecutor(policy=PolicyEngine(), audit=audit).execute(self._decision(state=state))
+                self.assertEqual(result.state, ControlledExecutionState.REJECTED)
+                self.assertEqual(audit.events[-1].action, "controlled_execution_rejected")
+
+    def test_forbidden_command_is_rejected(self) -> None:
+        result = self.controlled_executor.execute(
+            self._decision(command_id="forbidden.docker_inspect", risk_level=RiskLevel.CRITICAL)
+        )
+        self.assertEqual(result.state, ControlledExecutionState.REJECTED)
+        self.assertIn("FORBIDDEN", result.reason)
+
+    def test_modifying_action_is_rejected(self) -> None:
+        result = self.controlled_executor.execute(self._decision(action="write_file"))
+        self.assertEqual(result.state, ControlledExecutionState.REJECTED)
+        self.assertIn("modifying actions", result.reason)
+
+    def test_high_risk_is_blocked_or_rejected(self) -> None:
+        result = self.controlled_executor.execute(self._decision(risk_level=RiskLevel.HIGH))
+        self.assertIn(result.state, {ControlledExecutionState.BLOCKED_BY_DEFAULT, ControlledExecutionState.REJECTED})
+        self.assertIn("risk", result.reason)
+
+    def test_secret_like_metadata_is_rejected(self) -> None:
+        result = self.controlled_executor.execute(self._decision(actor="tester token=syntheticSecret12345"))
+        self.assertEqual(result.state, ControlledExecutionState.REJECTED)
+        self.assertIn("secret-like", result.reason)
+        self.assertNotIn("syntheticSecret12345", str(self.audit.events))
+
+    def test_controlled_executor_never_calls_real_executor(self) -> None:
+        fake = FakeExecutor()
+        result = self.controlled_executor.execute(self._decision())
+        self.assertEqual(result.state, ControlledExecutionState.BLOCKED_BY_DEFAULT)
+        self.assertEqual(fake.calls, [])
+
+    def test_controlled_executor_does_not_write_files(self) -> None:
+        with patch("pathlib.Path.open", side_effect=AssertionError("disk write attempted")):
+            result = self.controlled_executor.execute(self._decision())
+        self.assertEqual(result.state, ControlledExecutionState.BLOCKED_BY_DEFAULT)
+
+    def test_controlled_execution_audit_is_metadata_only(self) -> None:
+        self.controlled_executor.execute(self._decision())
         payload = str(self.audit.events).lower()
         self.assertNotIn("stdout", payload)
         self.assertNotIn("stderr", payload)

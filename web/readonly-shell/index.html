@@ -7,20 +7,27 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
     <header class="topbar">
       <div>
         <p class="eyebrow" data-product-context>Production protected</p>
         <h1 data-product-name>Cibermedida VPS Control Center</h1>
-        <p class="subtitle" data-product-phase>Phase 3.1 Static read-only data</p>
+        <p class="subtitle" data-product-phase>Phase 3.3 Read-only accessibility and visual checks</p>
       </div>
-      <div class="status-pill" aria-label="Execution status" data-execution-status>Real execution blocked</div>
+      <div class="status-summary">
+        <div class="status-pill" aria-label="Execution status" data-execution-status>Real execution blocked</div>
+        <p class="data-mode" aria-label="Data connection status">Static mock data · No backend · No live data</p>
+      </div>
     </header>
 
     <nav class="section-nav" aria-label="Control Center sections">
       <ul data-navigation></ul>
     </nav>
 
-    <main>
+    <p class="load-notice" role="status" aria-live="polite" data-load-notice hidden></p>
+
+    <main id="main-content" tabindex="-1">
       <section id="dashboard" class="page-section" aria-labelledby="dashboard-title">
         <div class="section-intro">
           <p class="eyebrow">Dashboard</p>

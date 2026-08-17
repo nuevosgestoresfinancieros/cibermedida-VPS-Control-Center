@@ -1,7 +1,7 @@
 {
   "product": {
     "name": "Cibermedida VPS Control Center",
-    "phase": "Phase 3.2 Read-only navigation",
+    "phase": "Phase 3.3 Read-only accessibility and visual checks",
     "context": "Production protected",
     "executionStatus": "Real execution blocked"
   },
@@ -27,10 +27,10 @@
       "summary": "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place."
     },
     {
-      "label": "Phase 3.2",
-      "title": "Read-only section navigation",
+      "label": "Phase 3.3",
+      "title": "Accessible read-only shell",
       "state": "current",
-      "summary": "Internal navigation exposes static control views without enabling operational actions."
+      "summary": "Keyboard navigation, safe empty states, and responsive presentation are enabled without operational actions."
     }
   ],
   "securityChain": [
@@ -74,6 +74,7 @@
     "View documentation summary",
     "View policy states",
     "View metadata-only audit examples",
+    "Keyboard-accessible section navigation",
     "View static mock data source",
     "No execution controls enabled"
   ],

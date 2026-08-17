@@ -4,7 +4,7 @@
   --surface: #ffffff;
   --surface-strong: #e9f1ee;
   --ink: #18201d;
-  --muted: #65726d;
+  --muted: #56635e;
   --line: #cfdad5;
   --green: #1f7a4d;
   --green-soft: #dcefe6;
@@ -32,6 +32,28 @@ body {
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 92px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #10231d;
+  font-weight: 800;
+  transform: translateY(-160%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
 }
 
 .topbar {
@@ -93,6 +115,20 @@ h2 {
   font-weight: 700;
 }
 
+.status-summary {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.data-mode {
+  color: #d8e8e1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 .section-nav {
   position: sticky;
   top: 0;
@@ -128,9 +164,26 @@ h2 {
   background: var(--surface-strong);
 }
 
+.section-nav a[aria-current="page"] {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: #183f61;
+}
+
 .section-nav a:focus-visible {
   outline: 3px solid var(--blue);
   outline-offset: 2px;
+}
+
+.load-notice {
+  width: min(1180px, calc(100% - 32px));
+  margin: 16px auto 0;
+  padding: 12px 14px;
+  border: 1px solid #c7a64e;
+  border-radius: 8px;
+  background: var(--gold-soft);
+  color: #60470f;
+  font-weight: 700;
 }
 
 main {
@@ -191,6 +244,15 @@ main {
 .phase-card p {
   margin-top: 12px;
   color: var(--muted);
+}
+
+.phase-card,
+.panel,
+.chain li,
+td,
+dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .phase-index {
@@ -277,6 +339,12 @@ main {
   border: 1px solid var(--line);
   color: var(--ink);
   font-weight: 700;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-style: italic;
 }
 
 .blocked-list li {
@@ -388,6 +456,20 @@ th {
     padding: 24px 16px;
   }
 
+  h1 {
+    font-size: clamp(1.9rem, 12vw, 3rem);
+    overflow-wrap: anywhere;
+  }
+
+  .status-summary {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .data-mode {
+    text-align: left;
+  }
+
   .section-nav ul {
     width: calc(100% - 20px);
   }
@@ -397,6 +479,17 @@ th {
   .capability-list,
   .audit-preview {
     grid-template-columns: 1fr;
+  }
+
+  .panel,
+  .phase-card {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 

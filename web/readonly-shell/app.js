@@ -1,7 +1,7 @@
 const fallbackStatus = {
   product: {
     name: "Cibermedida VPS Control Center",
-    phase: "Phase 3.2 Read-only navigation",
+    phase: "Phase 3.3 Read-only accessibility and visual checks",
     context: "Production protected",
     executionStatus: "Real execution blocked"
   },
@@ -16,7 +16,7 @@ const fallbackStatus = {
   phases: [
     { label: "Phase 1", title: "READ_SAFE basic completed", state: "complete", summary: "Minimal authorized inventory metadata was validated without persisted inventory output." },
     { label: "Phase 2", title: "Core Operator closed", state: "complete", summary: "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place." },
-    { label: "Phase 3.2", title: "Read-only section navigation", state: "current", summary: "Internal navigation exposes static control views without enabling operational actions." }
+    { label: "Phase 3.3", title: "Accessible read-only shell", state: "current", summary: "Keyboard navigation, safe empty states, and responsive presentation are enabled without operational actions." }
   ],
   securityChain: [
     { name: "Policy", state: "evaluates" },
@@ -35,7 +35,7 @@ const fallbackStatus = {
     { className: "FORBIDDEN", decision: "deny", execution: "Blocked", uiTreatment: "Shown as rejected" },
     { className: "modifying actions", decision: "deny", execution: "Blocked", uiTreatment: "Shown as rejected" }
   ],
-  uiCapabilities: ["View status", "View documentation summary", "View policy states", "View metadata-only audit examples", "View static mock data source", "No execution controls enabled"],
+  uiCapabilities: ["View status", "View documentation summary", "View policy states", "View metadata-only audit examples", "Keyboard-accessible section navigation", "View static mock data source", "No execution controls enabled"],
   auditPreview: { action: "execution_gate_evaluated", risk: "LOW", result: "blocked_by_default", content: "metadata only" },
   dataSource: { mode: "static mock", path: "web/readonly-shell/data/status.json", liveData: false, backend: false }
 };
@@ -50,6 +50,13 @@ function clear(node) {
 
 function appendList(container, items, className) {
   clear(container);
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "empty-state";
+    empty.appendChild(text("No mock items available."));
+    container.appendChild(empty);
+    return;
+  }
   items.forEach((item) => {
     const li = document.createElement("li");
     if (className) {
@@ -60,9 +67,27 @@ function appendList(container, items, className) {
   });
 }
 
+function updateCurrentNavigation() {
+  const currentTarget = window.location.hash.slice(1) || "dashboard";
+  document.querySelectorAll("[data-navigation] a").forEach((link) => {
+    if (link.getAttribute("href") === `#${currentTarget}`) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
 function renderNavigation(items) {
   const container = document.querySelector("[data-navigation]");
   clear(container);
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "empty-state";
+    empty.appendChild(text("Section navigation unavailable."));
+    container.appendChild(empty);
+    return;
+  }
   items.forEach((item) => {
     const li = document.createElement("li");
     const link = document.createElement("a");
@@ -71,11 +96,19 @@ function renderNavigation(items) {
     li.appendChild(link);
     container.appendChild(li);
   });
+  updateCurrentNavigation();
 }
 
 function renderPhases(phases) {
   const container = document.querySelector("[data-phases]");
   clear(container);
+  if (!Array.isArray(phases) || phases.length === 0) {
+    const empty = document.createElement("article");
+    empty.className = "phase-card empty-state";
+    empty.appendChild(text("No mock phase status available."));
+    container.appendChild(empty);
+    return;
+  }
   phases.forEach((phase) => {
     const article = document.createElement("article");
     article.className = `phase-card ${phase.state === "current" ? "current" : "complete"}`;
@@ -94,6 +127,10 @@ function renderPhases(phases) {
 function renderChain(chain) {
   const container = document.querySelector("[data-chain]");
   clear(container);
+  if (!Array.isArray(chain) || chain.length === 0) {
+    appendList(container, [], "empty-state");
+    return;
+  }
   chain.forEach((step) => {
     const li = document.createElement("li");
     const name = document.createElement("span");
@@ -108,6 +145,16 @@ function renderChain(chain) {
 function renderPolicy(rows) {
   const tbody = document.querySelector("[data-policy-matrix]");
   clear(tbody);
+  if (!Array.isArray(rows) || rows.length === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.className = "empty-state";
+    td.appendChild(text("No mock policy decisions available."));
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
   rows.forEach((row) => {
     const tr = document.createElement("tr");
     const classCell = document.createElement("td");
@@ -129,6 +176,13 @@ function renderPolicy(rows) {
 function renderAudit(audit) {
   const container = document.querySelector("[data-audit-preview]");
   clear(container);
+  if (!audit || Object.keys(audit).length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.appendChild(text("No mock audit metadata available."));
+    container.appendChild(empty);
+    return;
+  }
   Object.entries(audit).forEach(([key, value]) => {
     const item = document.createElement("div");
     const dt = document.createElement("dt");
@@ -147,7 +201,7 @@ function renderDataSource(source) {
   document.querySelector("[data-source-backend]").textContent = source.backend ? "yes" : "no";
 }
 
-function render(status) {
+function render(status, usedFallback) {
   document.title = `${status.product.name} - ${status.product.phase}`;
   document.querySelector("[data-product-name]").textContent = status.product.name;
   document.querySelector("[data-product-phase]").textContent = status.product.phase;
@@ -162,6 +216,9 @@ function render(status) {
   appendList(document.querySelector("[data-capabilities]"), status.uiCapabilities);
   renderAudit(status.auditPreview);
   renderDataSource(status.dataSource);
+  const notice = document.querySelector("[data-load-notice]");
+  notice.hidden = !usedFallback;
+  notice.textContent = usedFallback ? "Static JSON was unavailable. Safe bundled fallback data is being shown; no live connection was attempted." : "";
 }
 
 async function loadStatus() {
@@ -170,10 +227,11 @@ async function loadStatus() {
     if (!response.ok) {
       throw new Error("static data unavailable");
     }
-    return await response.json();
+    return { status: await response.json(), usedFallback: false };
   } catch {
-    return fallbackStatus;
+    return { status: fallbackStatus, usedFallback: true };
   }
 }
 
-loadStatus().then(render);
+window.addEventListener("hashchange", updateCurrentNavigation);
+loadStatus().then(({ status, usedFallback }) => render(status, usedFallback));

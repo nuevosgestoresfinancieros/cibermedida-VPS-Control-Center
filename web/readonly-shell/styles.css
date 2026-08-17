@@ -29,6 +29,11 @@ body {
   line-height: 1.5;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 92px;
+}
+
 .topbar {
   display: flex;
   align-items: flex-end;
@@ -88,9 +93,70 @@ h2 {
   font-weight: 700;
 }
 
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.section-nav ul {
+  display: flex;
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 10px 0;
+  gap: 8px;
+  list-style: none;
+}
+
+.section-nav a {
+  display: block;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-nav a:hover {
+  border-color: var(--line);
+  background: var(--surface-strong);
+}
+
+.section-nav a:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
 main {
   width: min(1180px, calc(100% - 32px));
   margin: 24px auto 48px;
+}
+
+.page-section {
+  scroll-margin-top: 92px;
+}
+
+.page-section + .page-section {
+  margin-top: 32px;
+}
+
+.page-section:target {
+  outline: 3px solid var(--blue-soft);
+  outline-offset: 8px;
+}
+
+.section-intro {
+  margin-bottom: 12px;
+}
+
+.section-intro h2 {
+  font-size: 1.35rem;
 }
 
 .hero-grid,
@@ -103,6 +169,10 @@ main {
 .dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 16px;
+}
+
+.section-grid {
+  margin-top: 0;
 }
 
 .phase-card,
@@ -316,6 +386,10 @@ th {
 
   .topbar {
     padding: 24px 16px;
+  }
+
+  .section-nav ul {
+    width: calc(100% - 20px);
   }
 
   .component-list,

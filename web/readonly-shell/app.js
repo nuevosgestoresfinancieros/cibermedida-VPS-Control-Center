@@ -1,14 +1,22 @@
 const fallbackStatus = {
   product: {
     name: "Cibermedida VPS Control Center",
-    phase: "Phase 3.1 Static read-only data",
+    phase: "Phase 3.2 Read-only navigation",
     context: "Production protected",
     executionStatus: "Real execution blocked"
   },
+  navigation: [
+    { label: "Dashboard", target: "dashboard" },
+    { label: "Core Operator", target: "core-operator" },
+    { label: "Policy", target: "policy" },
+    { label: "Audit Preview", target: "audit-preview" },
+    { label: "Safety Boundaries", target: "safety-boundaries" },
+    { label: "Data Source", target: "data-source" }
+  ],
   phases: [
     { label: "Phase 1", title: "READ_SAFE basic completed", state: "complete", summary: "Minimal authorized inventory metadata was validated without persisted inventory output." },
     { label: "Phase 2", title: "Core Operator closed", state: "complete", summary: "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place." },
-    { label: "Phase 3.1", title: "Static data shell", state: "current", summary: "The interface is fed by versioned mock data and remains read-only." }
+    { label: "Phase 3.2", title: "Read-only section navigation", state: "current", summary: "Internal navigation exposes static control views without enabling operational actions." }
   ],
   securityChain: [
     { name: "Policy", state: "evaluates" },
@@ -48,6 +56,19 @@ function appendList(container, items, className) {
       li.className = className;
     }
     li.appendChild(text(item));
+    container.appendChild(li);
+  });
+}
+
+function renderNavigation(items) {
+  const container = document.querySelector("[data-navigation]");
+  clear(container);
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = `#${item.target}`;
+    link.appendChild(text(item.label));
+    li.appendChild(link);
     container.appendChild(li);
   });
 }
@@ -132,6 +153,7 @@ function render(status) {
   document.querySelector("[data-product-phase]").textContent = status.product.phase;
   document.querySelector("[data-product-context]").textContent = status.product.context;
   document.querySelector("[data-execution-status]").textContent = status.product.executionStatus;
+  renderNavigation(status.navigation);
   renderPhases(status.phases);
   renderChain(status.securityChain);
   appendList(document.querySelector("[data-components]"), status.components);

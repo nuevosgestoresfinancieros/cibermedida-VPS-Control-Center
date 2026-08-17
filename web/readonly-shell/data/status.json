@@ -1,10 +1,18 @@
 {
   "product": {
     "name": "Cibermedida VPS Control Center",
-    "phase": "Phase 3.1 Static read-only data",
+    "phase": "Phase 3.2 Read-only navigation",
     "context": "Production protected",
     "executionStatus": "Real execution blocked"
   },
+  "navigation": [
+    { "label": "Dashboard", "target": "dashboard" },
+    { "label": "Core Operator", "target": "core-operator" },
+    { "label": "Policy", "target": "policy" },
+    { "label": "Audit Preview", "target": "audit-preview" },
+    { "label": "Safety Boundaries", "target": "safety-boundaries" },
+    { "label": "Data Source", "target": "data-source" }
+  ],
   "phases": [
     {
       "label": "Phase 1",
@@ -19,10 +27,10 @@
       "summary": "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place."
     },
     {
-      "label": "Phase 3.1",
-      "title": "Static data shell",
+      "label": "Phase 3.2",
+      "title": "Read-only section navigation",
       "state": "current",
-      "summary": "The interface is fed by versioned mock data and remains read-only."
+      "summary": "Internal navigation exposes static control views without enabling operational actions."
     }
   ],
   "securityChain": [

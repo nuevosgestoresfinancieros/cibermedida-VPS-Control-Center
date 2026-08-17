@@ -1,0 +1,84 @@
+{
+  "product": {
+    "name": "Cibermedida VPS Control Center",
+    "phase": "Phase 3.1 Static read-only data",
+    "context": "Production protected",
+    "executionStatus": "Real execution blocked"
+  },
+  "phases": [
+    {
+      "label": "Phase 1",
+      "title": "READ_SAFE basic completed",
+      "state": "complete",
+      "summary": "Minimal authorized inventory metadata was validated without persisted inventory output."
+    },
+    {
+      "label": "Phase 2",
+      "title": "Core Operator closed",
+      "state": "complete",
+      "summary": "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place."
+    },
+    {
+      "label": "Phase 3.1",
+      "title": "Static data shell",
+      "state": "current",
+      "summary": "The interface is fed by versioned mock data and remains read-only."
+    }
+  ],
+  "securityChain": [
+    { "name": "Policy", "state": "evaluates" },
+    { "name": "Approval", "state": "gated" },
+    { "name": "ApprovedExecutionPlan", "state": "contract" },
+    { "name": "DryRun", "state": "metadata-only" },
+    { "name": "ExecutionGate", "state": "eligible check" },
+    { "name": "ControlledExecutor", "state": "blocked_by_default" }
+  ],
+  "components": [
+    "OperatorConfig",
+    "safe logging",
+    "audit",
+    "PolicyEngine",
+    "ReadSafeExecutorAdapter",
+    "Approval workflow",
+    "ApprovedExecutionPlan",
+    "ApprovedPlanDryRunner",
+    "ExecutionGate",
+    "ControlledExecutor"
+  ],
+  "blockedByDesign": [
+    "No real execution",
+    "No elevated shell access",
+    "No credential exposure",
+    "No raw operational records",
+    "No backup or database access",
+    "No service modification",
+    "No automatic inventory file"
+  ],
+  "policyMatrix": [
+    { "className": "READ_SAFE", "decision": "allow", "execution": "Metadata only", "uiTreatment": "Visible as read-only status" },
+    { "className": "READ_SENSITIVE", "decision": "approval_required", "execution": "Not automatic", "uiTreatment": "Shown as gated" },
+    { "className": "READ_PRIVILEGED", "decision": "approval_required", "execution": "Not automatic", "uiTreatment": "Shown as gated" },
+    { "className": "FORBIDDEN", "decision": "deny", "execution": "Blocked", "uiTreatment": "Shown as rejected" },
+    { "className": "modifying actions", "decision": "deny", "execution": "Blocked", "uiTreatment": "Shown as rejected" }
+  ],
+  "uiCapabilities": [
+    "View status",
+    "View documentation summary",
+    "View policy states",
+    "View metadata-only audit examples",
+    "View static mock data source",
+    "No execution controls enabled"
+  ],
+  "auditPreview": {
+    "action": "execution_gate_evaluated",
+    "risk": "LOW",
+    "result": "blocked_by_default",
+    "content": "metadata only"
+  },
+  "dataSource": {
+    "mode": "static mock",
+    "path": "web/readonly-shell/data/status.json",
+    "liveData": false,
+    "backend": false
+  }
+}

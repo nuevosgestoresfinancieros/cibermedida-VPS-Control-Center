@@ -1,43 +1,156 @@
 const fallbackStatus = {
-  product: {
-    name: "Cibermedida VPS Control Center",
-    phase: "Phase 3.3 Read-only accessibility and visual checks",
-    context: "Production protected",
-    executionStatus: "Real execution blocked"
+  "product": {
+    "name": "Cibermedida VPS Control Center",
+    "phase": "Fase 3.5 Interfaz solo lectura en castellano",
+    "context": "Producción protegida",
+    "executionStatus": "Ejecución real bloqueada"
   },
-  navigation: [
-    { label: "Dashboard", target: "dashboard" },
-    { label: "Core Operator", target: "core-operator" },
-    { label: "Policy", target: "policy" },
-    { label: "Audit Preview", target: "audit-preview" },
-    { label: "Safety Boundaries", target: "safety-boundaries" },
-    { label: "Data Source", target: "data-source" }
+  "navigation": [
+    {
+      "label": "Panel",
+      "target": "dashboard"
+    },
+    {
+      "label": "Core Operator",
+      "target": "core-operator"
+    },
+    {
+      "label": "Política",
+      "target": "policy"
+    },
+    {
+      "label": "Vista de auditoría",
+      "target": "audit-preview"
+    },
+    {
+      "label": "Límites de seguridad",
+      "target": "safety-boundaries"
+    },
+    {
+      "label": "Fuente de datos",
+      "target": "data-source"
+    }
   ],
-  phases: [
-    { label: "Phase 1", title: "READ_SAFE basic completed", state: "complete", summary: "Minimal authorized inventory metadata was validated without persisted inventory output." },
-    { label: "Phase 2", title: "Core Operator closed", state: "complete", summary: "Policy, approvals, dry-run, execution gate, and controlled executor contracts are in place." },
-    { label: "Phase 3.3", title: "Accessible read-only shell", state: "current", summary: "Keyboard navigation, safe empty states, and responsive presentation are enabled without operational actions." }
+  "phases": [
+    {
+      "label": "Fase 1",
+      "title": "READ_SAFE básico completado",
+      "state": "complete",
+      "summary": "Los metadatos mínimos autorizados de inventario se validaron sin persistir salida de inventario."
+    },
+    {
+      "label": "Fase 2",
+      "title": "Core Operator cerrado",
+      "state": "complete",
+      "summary": "Los contratos de política, aprobaciones, dry-run, execution gate y controlled executor están implementados."
+    },
+    {
+      "label": "Fase 3.5",
+      "title": "Interfaz solo lectura en castellano",
+      "state": "current",
+      "summary": "La navegación por teclado, los estados vacíos seguros y la presentación responsive se mantienen sin acciones operativas."
+    }
   ],
-  securityChain: [
-    { name: "Policy", state: "evaluates" },
-    { name: "Approval", state: "gated" },
-    { name: "ApprovedExecutionPlan", state: "contract" },
-    { name: "DryRun", state: "metadata-only" },
-    { name: "ExecutionGate", state: "eligible check" },
-    { name: "ControlledExecutor", state: "blocked_by_default" }
+  "securityChain": [
+    {
+      "name": "Policy",
+      "state": "evalúa"
+    },
+    {
+      "name": "Approval",
+      "state": "con aprobación"
+    },
+    {
+      "name": "ApprovedExecutionPlan",
+      "state": "contrato"
+    },
+    {
+      "name": "DryRun",
+      "state": "solo metadatos"
+    },
+    {
+      "name": "ExecutionGate",
+      "state": "comprueba elegibilidad"
+    },
+    {
+      "name": "ControlledExecutor",
+      "state": "blocked_by_default"
+    }
   ],
-  components: ["OperatorConfig", "safe logging", "audit", "PolicyEngine", "ReadSafeExecutorAdapter", "Approval workflow", "ApprovedExecutionPlan", "ApprovedPlanDryRunner", "ExecutionGate", "ControlledExecutor"],
-  blockedByDesign: ["No real execution", "No elevated shell access", "No credential exposure", "No raw operational records", "No backup or database access", "No service modification", "No automatic inventory file"],
-  policyMatrix: [
-    { className: "READ_SAFE", decision: "allow", execution: "Metadata only", uiTreatment: "Visible as read-only status" },
-    { className: "READ_SENSITIVE", decision: "approval_required", execution: "Not automatic", uiTreatment: "Shown as gated" },
-    { className: "READ_PRIVILEGED", decision: "approval_required", execution: "Not automatic", uiTreatment: "Shown as gated" },
-    { className: "FORBIDDEN", decision: "deny", execution: "Blocked", uiTreatment: "Shown as rejected" },
-    { className: "modifying actions", decision: "deny", execution: "Blocked", uiTreatment: "Shown as rejected" }
+  "components": [
+    "OperatorConfig",
+    "safe logging",
+    "audit",
+    "PolicyEngine",
+    "ReadSafeExecutorAdapter",
+    "Approval workflow",
+    "ApprovedExecutionPlan",
+    "ApprovedPlanDryRunner",
+    "ExecutionGate",
+    "ControlledExecutor"
   ],
-  uiCapabilities: ["View status", "View documentation summary", "View policy states", "View metadata-only audit examples", "Keyboard-accessible section navigation", "View static mock data source", "No execution controls enabled"],
-  auditPreview: { action: "execution_gate_evaluated", risk: "LOW", result: "blocked_by_default", content: "metadata only" },
-  dataSource: { mode: "static mock", path: "web/readonly-shell/data/status.json", liveData: false, backend: false }
+  "blockedByDesign": [
+    "Sin ejecución real",
+    "Sin privilegios elevados",
+    "Sin exposición de credenciales",
+    "Sin registros operativos crudos",
+    "Sin acceso a backups ni bases de datos",
+    "Sin modificación de servicios",
+    "Sin inventario automático"
+  ],
+  "policyMatrix": [
+    {
+      "className": "READ_SAFE",
+      "decision": "allow",
+      "execution": "Solo metadatos",
+      "uiTreatment": "Visible como estado solo lectura"
+    },
+    {
+      "className": "READ_SENSITIVE",
+      "decision": "approval_required",
+      "execution": "No automática",
+      "uiTreatment": "Mostrado como sujeto a aprobación"
+    },
+    {
+      "className": "READ_PRIVILEGED",
+      "decision": "approval_required",
+      "execution": "No automática",
+      "uiTreatment": "Mostrado como sujeto a aprobación"
+    },
+    {
+      "className": "FORBIDDEN",
+      "decision": "deny",
+      "execution": "Bloqueada",
+      "uiTreatment": "Mostrado como rechazado"
+    },
+    {
+      "className": "acciones modificadoras",
+      "decision": "deny",
+      "execution": "Bloqueada",
+      "uiTreatment": "Mostrado como rechazado"
+    }
+  ],
+  "uiCapabilities": [
+    "Ver estado",
+    "Ver resumen documental",
+    "Ver estados de política",
+    "Ver ejemplos de auditoría solo metadatos",
+    "Navegación por secciones accesible con teclado",
+    "Ver fuente de datos simulados estática",
+    "Sin controles de ejecución habilitados"
+  ],
+  "auditPreview": {
+    "acción": "execution_gate_evaluated",
+    "riesgo": "BAJO",
+    "resultado": "blocked_by_default",
+    "contenido": "solo metadatos"
+  },
+  "dataSource": {
+    "mode": "datos simulados estáticos",
+    "path": "web/readonly-shell/data/status.json",
+    "liveData": false,
+    "backend": false
+  }
 };
 
 const text = (value) => document.createTextNode(String(value));
@@ -53,7 +166,7 @@ function appendList(container, items, className) {
   if (!Array.isArray(items) || items.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty-state";
-    empty.appendChild(text("No mock items available."));
+    empty.appendChild(text("No hay elementos simulados disponibles."));
     container.appendChild(empty);
     return;
   }
@@ -84,7 +197,7 @@ function renderNavigation(items) {
   if (!Array.isArray(items) || items.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty-state";
-    empty.appendChild(text("Section navigation unavailable."));
+    empty.appendChild(text("La navegación de secciones no está disponible."));
     container.appendChild(empty);
     return;
   }
@@ -105,7 +218,7 @@ function renderPhases(phases) {
   if (!Array.isArray(phases) || phases.length === 0) {
     const empty = document.createElement("article");
     empty.className = "phase-card empty-state";
-    empty.appendChild(text("No mock phase status available."));
+    empty.appendChild(text("No hay estado simulado de fases disponible."));
     container.appendChild(empty);
     return;
   }
@@ -150,7 +263,7 @@ function renderPolicy(rows) {
     const td = document.createElement("td");
     td.colSpan = 4;
     td.className = "empty-state";
-    td.appendChild(text("No mock policy decisions available."));
+    td.appendChild(text("No hay decisiones simuladas de política disponibles."));
     tr.appendChild(td);
     tbody.appendChild(tr);
     return;
@@ -179,7 +292,7 @@ function renderAudit(audit) {
   if (!audit || Object.keys(audit).length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.appendChild(text("No mock audit metadata available."));
+    empty.appendChild(text("No hay metadatos simulados de auditoría disponibles."));
     container.appendChild(empty);
     return;
   }
@@ -197,8 +310,8 @@ function renderAudit(audit) {
 function renderDataSource(source) {
   document.querySelector("[data-source-mode]").textContent = source.mode;
   document.querySelector("[data-source-path]").textContent = source.path;
-  document.querySelector("[data-source-live]").textContent = source.liveData ? "yes" : "no";
-  document.querySelector("[data-source-backend]").textContent = source.backend ? "yes" : "no";
+  document.querySelector("[data-source-live]").textContent = source.liveData ? "sí" : "no";
+  document.querySelector("[data-source-backend]").textContent = source.backend ? "sí" : "no";
 }
 
 function render(status, usedFallback) {
@@ -218,14 +331,14 @@ function render(status, usedFallback) {
   renderDataSource(status.dataSource);
   const notice = document.querySelector("[data-load-notice]");
   notice.hidden = !usedFallback;
-  notice.textContent = usedFallback ? "Static JSON was unavailable. Safe bundled fallback data is being shown; no live connection was attempted." : "";
+  notice.textContent = usedFallback ? "El JSON estático no está disponible. Se muestran datos seguros incluidos en la página; no se intentó ninguna conexión real." : "";
 }
 
 async function loadStatus() {
   try {
     const response = await fetch("./data/status.json", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error("static data unavailable");
+      throw new Error("datos estáticos no disponibles");
     }
     return { status: await response.json(), usedFallback: false };
   } catch {

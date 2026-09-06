@@ -3,37 +3,164 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cibermedida VPS Control Center - Fase 3.5 Interfaz solo lectura en castellano</title>
+    <meta name="theme-color" content="#f3f6f9">
+    <title>Cibermedida VPS Control Center - Fase 3.6 Integración read-only</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <a class="skip-link" href="#main-content">Saltar al contenido principal</a>
 
     <header class="topbar">
-      <div>
-        <p class="eyebrow" data-product-context>Producción protegida</p>
-        <h1 data-product-name>Cibermedida VPS Control Center</h1>
-        <p class="subtitle" data-product-phase>Fase 3.5 Interfaz solo lectura en castellano</p>
+      <div class="brand-lockup">
+        <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Contraer menú lateral" aria-expanded="true" title="Contraer menú lateral">
+          <span aria-hidden="true">«</span>
+        </button>
+        <div class="brand-mark" aria-hidden="true">CM</div>
+        <div>
+          <p class="eyebrow" data-product-context>Producción protegida</p>
+          <h1 data-product-name>Cibermedida VPS Control Center</h1>
+          <p class="subtitle" data-product-phase>Fase 3.6 Integración read-only</p>
+        </div>
       </div>
-      <div class="status-summary">
-        <div class="status-pill" aria-label="Estado de ejecución" data-execution-status>Ejecución real bloqueada</div>
-        <p class="data-mode" aria-label="Estado de conexión de datos">Datos simulados estáticos · Sin backend · Sin datos reales</p>
+      <div class="topbar-tools">
+        <label class="global-search" for="global-search">
+          <span aria-hidden="true">Buscar</span>
+          <input id="global-search" name="section-search" type="search" placeholder="Buscar secciones…" autocomplete="off" spellcheck="false" data-global-search>
+          <kbd>Ctrl K</kbd>
+        </label>
+        <button class="command-trigger" type="button" data-command-open aria-haspopup="dialog" aria-controls="command-palette">
+          <span aria-hidden="true">⌘</span> Paleta
+        </button>
+        <div class="status-summary">
+          <div class="status-pill" aria-label="Estado de ejecución" data-execution-status>Ejecución real bloqueada</div>
+          <p class="data-mode" aria-label="Estado de conexión de datos" data-data-mode>Datos simulados estáticos · Sin backend · Sin datos reales</p>
+        </div>
+        <details class="auth-menu">
+          <summary><span class="user-avatar" aria-hidden="true">CM</span><span data-auth-summary>Acceso</span></summary>
+          <div class="auth-panel" data-auth-panel>
+            <p class="auth-state" data-auth-state>Sesión no iniciada</p>
+            <form class="auth-form" data-login-form>
+              <label for="login-username">Usuario</label>
+              <input id="login-username" name="username" type="text" autocomplete="username" spellcheck="false" required>
+              <label for="login-password">Contraseña</label>
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+              <label for="login-otp">Código 2FA (si la cuenta lo exige)</label>
+              <input id="login-otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" spellcheck="false" pattern="[0-9]{6,8}" maxlength="8">
+              <button type="submit">Iniciar sesión</button>
+            </form>
+            <button class="auth-logout" type="button" data-logout hidden>Cerrar sesión</button>
+            <p class="auth-message" role="status" aria-live="polite" data-auth-message></p>
+          </div>
+        </details>
       </div>
     </header>
 
-    <nav class="section-nav" aria-label="Secciones del Control Center">
-      <ul data-navigation></ul>
-    </nav>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegación principal">
+        <div class="sidebar-heading">
+          <span class="sidebar-label">Áreas de control</span>
+          <span class="sidebar-state">Solo lectura</span>
+        </div>
+        <div class="sidebar-context" aria-live="polite">
+          <strong data-sidebar-context-title>Resumen general</strong>
+          <p data-sidebar-context-copy>Estado global, alertas y actividad reciente.</p>
+        </div>
+        <nav class="section-nav" aria-label="Secciones del Control Center">
+          <div data-navigation></div>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Política activa</span>
+          <strong>blocked_by_default</strong>
+        </div>
+      </aside>
 
-    <p class="load-notice" role="status" aria-live="polite" data-load-notice hidden></p>
+      <div class="content-column">
+        <p class="load-notice" role="status" aria-live="polite" data-load-notice hidden></p>
+        <div class="page-context" aria-label="Ubicación actual">
+          <span data-current-group>Resumen</span>
+          <span aria-hidden="true">/</span>
+          <strong data-current-page>Panel</strong>
+        </div>
 
-    <main id="main-content" tabindex="-1">
+        <main id="main-content" tabindex="-1">
       <section id="dashboard" class="page-section" aria-labelledby="dashboard-title">
         <div class="section-intro">
-          <p class="eyebrow">Panel</p>
-          <h2 id="dashboard-title">Estado de fases del proyecto</h2>
+          <p class="eyebrow">Resumen operativo</p>
+          <h2 id="dashboard-title">Control Center</h2>
+          <p class="section-description">Visibilidad consolidada sobre salud, proyectos, cambios y límites de seguridad.</p>
+        </div>
+        <div class="dashboard-overview">
+          <article class="health-card panel">
+            <div class="health-card-heading">
+              <div>
+                <p class="eyebrow">Salud del entorno</p>
+                <h3 data-health-label>Estable</h3>
+              </div>
+              <strong class="health-score" data-health-score>92</strong>
+            </div>
+            <div class="health-meter" role="progressbar" aria-label="Puntuación de salud" aria-valuemin="0" aria-valuemax="100" aria-valuenow="92" data-health-meter>
+              <span></span>
+            </div>
+            <div class="health-meta">
+              <span data-health-environment>Laboratorio controlado</span>
+              <span data-health-refreshed>Actualizado hace un momento</span>
+            </div>
+          </article>
+          <article class="control-summary panel">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow">Estado de control</p>
+              <h3>Sin acciones pendientes</h3>
+            </div>
+            <div class="control-summary-grid">
+              <div><span>Modo</span><strong data-dashboard-mode>Metadata-only</strong></div>
+              <div><span>Autorización</span><strong data-dashboard-authorization>Requerida</strong></div>
+              <div><span>Proveedor live</span><strong data-dashboard-provider>Deshabilitado</strong></div>
+              <div><span>Última revisión</span><strong data-dashboard-review>Fase 3.6</strong></div>
+            </div>
+          </article>
+        </div>
+        <div class="dashboard-metrics" data-dashboard-metrics></div>
+        <div class="section-heading dashboard-subheading">
+          <p class="eyebrow">Atención prioritaria</p>
+          <h3>Indicadores y alertas</h3>
+        </div>
+        <div class="dashboard-visual-grid">
+          <article class="panel infrastructure-panel">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow">Infraestructura</p>
+              <h3>Inventario declarado</h3>
+            </div>
+            <div class="compact-table-container" data-infrastructure-map></div>
+          </article>
+          <article class="panel activity-panel">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow">Trazabilidad</p>
+              <h3>Actividad reciente</h3>
+            </div>
+            <ol class="activity-feed" data-activity-feed></ol>
+          </article>
+        </div>
+        <div class="project-overview panel">
+          <div class="section-heading compact-heading">
+            <p class="eyebrow">Proyectos</p>
+            <h3>Estado de los proyectos declarados</h3>
+          </div>
+          <div class="compact-table-container" data-project-cards></div>
+        </div>
+        <div class="section-heading phase-heading">
+          <p class="eyebrow">Evolución</p>
+          <h3>Estado de fases del proyecto</h3>
         </div>
         <div class="hero-grid" data-phases></div>
+      </section>
+
+      <section id="capabilities" class="page-section" aria-labelledby="capabilities-title">
+        <div class="section-intro">
+          <p class="eyebrow">Capacidades</p>
+          <h2 id="capabilities-title">Estado real de cada módulo</h2>
+        </div>
+        <div class="capability-grid" data-capability-grid></div>
       </section>
 
       <section id="core-operator" class="page-section" aria-labelledby="core-operator-title">
@@ -54,6 +181,17 @@
             <h2>Componentes del Core Operator</h2>
           </div>
           <ul class="component-list" data-components></ul>
+        </article>
+        <article class="panel readiness-panel" data-readiness-panel>
+          <div class="section-heading">
+            <p class="eyebrow">Preparación de producción</p>
+            <h2>Matriz GO / NO_GO</h2>
+          </div>
+          <p class="readiness-result" data-readiness-result role="status" aria-live="polite">
+            Requiere una sesión autorizada para consultar la matriz.
+          </p>
+          <button class="action-button" type="button" data-readiness-refresh>Consultar preparación</button>
+          <ul class="readiness-checks" data-readiness-checks></ul>
         </article>
       </section>
 
@@ -113,7 +251,7 @@
         </article>
       </section>
 
-      <section id="data-source" class="page-section" aria-labelledby="data-source-title">
+    <section id="data-source" class="page-section" aria-labelledby="data-source-title">
         <div class="section-intro">
           <p class="eyebrow">Fuente de datos</p>
           <h2 id="data-source-title">Datos simulados versionados</h2>
@@ -121,7 +259,7 @@
         <div class="panel data-panel">
           <div class="section-heading">
             <p class="eyebrow">Fuente estática</p>
-            <h2>Sin conexión real</h2>
+            <h2>Fuente controlada</h2>
           </div>
           <dl class="source-preview">
             <div><dt>modo</dt><dd data-source-mode>datos simulados estáticos</dd></div>
@@ -131,7 +269,37 @@
           </dl>
         </div>
       </section>
-    </main>
+
+      <div data-operational-sections></div>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="detail-drawer" aria-labelledby="detail-drawer-title" data-detail-drawer>
+      <div class="detail-drawer-heading">
+        <div>
+          <p class="eyebrow" data-detail-eyebrow>Detalle</p>
+          <h2 id="detail-drawer-title" data-detail-title>Información</h2>
+        </div>
+        <button class="icon-button" type="button" data-detail-close aria-label="Cerrar panel de detalle">×</button>
+      </div>
+      <div class="detail-drawer-body" data-detail-body></div>
+    </dialog>
+
+    <dialog class="command-palette" id="command-palette" aria-labelledby="command-palette-title" data-command-palette>
+      <div class="command-palette-heading">
+        <div>
+          <p class="eyebrow">Navegación rápida</p>
+          <h2 id="command-palette-title">Ir a una sección</h2>
+        </div>
+        <button class="icon-button" type="button" data-command-close aria-label="Cerrar paleta">×</button>
+      </div>
+      <label class="command-search" for="command-search">
+        <span>Buscar área</span>
+        <input id="command-search" name="command-search" type="search" placeholder="Filtrar secciones…" autocomplete="off" spellcheck="false" data-command-search>
+      </label>
+      <ul class="command-results" data-command-results></ul>
+    </dialog>
     <script src="./app.js"></script>
   </body>
 </html>

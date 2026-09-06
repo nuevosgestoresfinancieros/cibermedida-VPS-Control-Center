@@ -10,6 +10,7 @@ from .approvals import (
     ApprovalStatus,
     ApprovalStore,
     InMemoryApprovalStore,
+    JsonApprovalStore,
 )
 from .config import OperatorConfig, default_config
 from .controlled_executor import ControlledExecutionResult, ControlledExecutionState, ControlledExecutor
@@ -44,6 +45,7 @@ __all__ = [
     "HealthCheckResult",
     "InMemoryAuditStore",
     "InMemoryApprovalStore",
+    "JsonApprovalStore",
     "JsonlAuditStore",
     "InMemoryStructuredLogger",
     "LogRecord",

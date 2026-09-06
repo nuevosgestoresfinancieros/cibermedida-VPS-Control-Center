@@ -25,6 +25,10 @@ class DryRunExecutionResult:
     risk_level: RiskLevel
     approval_id: str | None
     reason: str
+    operation_id: str | None = None
+    operation_hash: str | None = None
+    plan_hash: str | None = None
+    approval_hash: str | None = None
 
 
 class ApprovedPlanDryRunner:
@@ -122,6 +126,10 @@ class ApprovedPlanDryRunner:
             risk_level=plan.risk_level,
             approval_id=safe_approval_id,
             reason="dry run completed",
+            operation_id=plan.operation_id,
+            operation_hash=plan.operation_hash,
+            plan_hash=plan.plan_hash,
+            approval_hash=plan.approval_hash,
         )
 
     def _policy_decision(self, actor: str, action: str, command_id: str):

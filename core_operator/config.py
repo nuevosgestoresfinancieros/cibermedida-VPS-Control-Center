@@ -15,6 +15,9 @@ CRITICAL_FILENAMES = frozenset(
         "pyproject.toml",
     }
 )
+DEFAULT_AUDIT_MAX_BYTES = 16 * 1024 * 1024
+DEFAULT_AUDIT_RETENTION_FILES = 3
+MAX_AUDIT_RETENTION_FILES = 16
 
 
 @dataclass(frozen=True)
@@ -24,6 +27,8 @@ class OperatorConfig:
     log_to_disk: bool = False
     audit_to_disk: bool = False
     audit_path: Path | None = None
+    audit_max_bytes: int = DEFAULT_AUDIT_MAX_BYTES
+    audit_retention_files: int = DEFAULT_AUDIT_RETENTION_FILES
     load_environment_files: bool = False
     allow_network_health_checks: bool = False
 
@@ -43,6 +48,10 @@ class OperatorConfig:
             raise ValueError("Environment file loading is not authorized")
         if self.allow_network_health_checks:
             raise ValueError("Network health checks are not authorized in the Phase 2 base")
+        if self.audit_max_bytes < 1024:
+            raise ValueError("audit_max_bytes is too small")
+        if self.audit_retention_files < 1 or self.audit_retention_files > MAX_AUDIT_RETENTION_FILES:
+            raise ValueError("audit_retention_files is invalid")
 
     def resolve_audit_path(self) -> Path:
         if self.audit_path is None:

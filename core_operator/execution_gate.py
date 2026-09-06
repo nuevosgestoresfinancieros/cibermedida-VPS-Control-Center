@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 
 from .approved_execution import ApprovedExecutionPlan, ExecutionPlanState
@@ -27,6 +28,10 @@ class ExecutionGateDecision:
     risk_level: RiskLevel
     approval_id: str | None
     reason: str
+    operation_id: str | None = None
+    operation_hash: str | None = None
+    plan_hash: str | None = None
+    approval_hash: str | None = None
 
 
 class ExecutionGate:
@@ -52,6 +57,31 @@ class ExecutionGate:
         unsafe_reason = self._unsafe_metadata_reason(plan, dry_run)
         if unsafe_reason:
             return self._blocked(safe_actor, safe_action, safe_command_id, plan.risk_level, safe_approval_id, unsafe_reason)
+        if plan.policy_version != "legacy" and (
+            not plan.plan_id
+            or not plan.actor_role
+            or not plan.approved_by
+            or not plan.approved_by_role
+            or not plan.effective_permissions
+            or not plan.approval_expires_at
+        ):
+            return self._blocked(
+                safe_actor,
+                safe_action,
+                safe_command_id,
+                plan.risk_level,
+                safe_approval_id,
+                "approval policy snapshot is incomplete",
+            )
+        if plan.policy_version != "legacy" and _expired(plan.approval_expires_at):
+            return self._blocked(
+                safe_actor,
+                safe_action,
+                safe_command_id,
+                plan.risk_level,
+                safe_approval_id,
+                "approval snapshot is expired",
+            )
 
         if dry_run.state is not DryRunExecutionState.COMPLETED:
             return self._blocked(
@@ -116,7 +146,7 @@ class ExecutionGate:
                 "risk exceeds execution gate limit",
             )
 
-        return self._eligible(safe_actor, safe_action, safe_command_id, plan.risk_level, safe_approval_id)
+        return self._eligible(safe_actor, safe_action, safe_command_id, plan.risk_level, safe_approval_id, plan=plan)
 
     def _policy_decision(self, actor: str, action: str, command_id: str):
         try:
@@ -137,6 +167,14 @@ class ExecutionGate:
             dry_run.command_id,
             dry_run.approval_id,
             dry_run.reason,
+            plan.actor_role,
+            plan.approved_by,
+            plan.approved_by_role,
+            plan.policy_version,
+            plan.resource,
+            plan.plan_id,
+            plan.approval_expires_at,
+            *plan.effective_permissions,
         )
         if any(value is not None and contains_secret(value) for value in values):
             return "metadata contains secret-like content"
@@ -154,6 +192,14 @@ class ExecutionGate:
             return "approval mismatch"
         if plan.risk_level is not dry_run.risk_level:
             return "risk mismatch"
+        if plan.operation_id is not None and plan.operation_id != dry_run.operation_id:
+            return "operation mismatch"
+        if plan.operation_hash is not None and plan.operation_hash != dry_run.operation_hash:
+            return "operation hash mismatch"
+        if plan.plan_hash is not None and plan.plan_hash != dry_run.plan_hash:
+            return "plan hash mismatch"
+        if plan.approval_hash is not None and plan.approval_hash != dry_run.approval_hash:
+            return "approval hash mismatch"
         return None
 
     def _eligible(
@@ -163,6 +209,8 @@ class ExecutionGate:
         command_id: str,
         risk_level: RiskLevel,
         approval_id: str | None,
+        *,
+        plan: ApprovedExecutionPlan,
     ) -> ExecutionGateDecision:
         self._audit(
             actor=actor,
@@ -180,6 +228,10 @@ class ExecutionGate:
             risk_level=risk_level,
             approval_id=approval_id,
             reason="eligible for controlled execution",
+            operation_id=plan.operation_id,
+            operation_hash=plan.operation_hash,
+            plan_hash=plan.plan_hash,
+            approval_hash=plan.approval_hash,
         )
 
     def _blocked(
@@ -261,3 +313,13 @@ def _risk_allowed(actual: RiskLevel, maximum: RiskLevel) -> bool:
         RiskLevel.CRITICAL: 4,
     }
     return order[actual] <= order[maximum]
+
+
+def _expired(value: str | None) -> bool:
+    if value is None:
+        return True
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return parsed.tzinfo is None or parsed.astimezone(timezone.utc) <= datetime.now(timezone.utc)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 import json
 import tempfile
 import unittest
@@ -232,6 +233,62 @@ class ApprovalWorkflowTests(unittest.TestCase):
         with self.assertRaises(ApprovalStateError):
             approvals.approve(request.id, decided_by="admin")
 
+    def test_versioned_approval_keeps_immutable_policy_snapshot(self) -> None:
+        approvals = InMemoryApprovalStore(audit=InMemoryAuditStore())
+        request = approvals.create_pending(
+            actor="operator",
+            actor_role="OPERATOR",
+            action="read",
+            risk_level=RiskLevel.MEDIUM,
+            reason="independent review required",
+            command_id="system.ports",
+            policy_version="phase-3.6",
+            effective_permissions=("RUN_READ_SENSITIVE", "VIEW_AUDIT_METADATA"),
+            resource="command:system.ports",
+            plan_id="plan-fixed-001",
+        )
+        decision = approvals.approve(request.id, decided_by="admin", decided_by_role="ADMIN")
+        stored = approvals.get(request.id)
+        self.assertEqual(stored.plan_id, "plan-fixed-001")
+        self.assertEqual(stored.policy_version, "phase-3.6")
+        self.assertEqual(stored.effective_permissions, ("RUN_READ_SENSITIVE", "VIEW_AUDIT_METADATA"))
+        self.assertEqual(stored.decided_by_role, "ADMIN")
+        self.assertEqual(decision.plan_id, stored.plan_id)
+        self.assertEqual(decision.actor_role, "OPERATOR")
+
+    def test_versioned_approval_rejects_self_approval_and_expires(self) -> None:
+        approvals = InMemoryApprovalStore(audit=InMemoryAuditStore())
+        expired_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+        request = approvals.create_pending(
+            actor="operator",
+            actor_role="OPERATOR",
+            action="read",
+            risk_level=RiskLevel.LOW,
+            reason="review",
+            command_id="system.memory",
+            policy_version="phase-3.6",
+            effective_permissions=("RUN_READ_SAFE",),
+            resource="command:system.memory",
+            expires_at=expired_at,
+        )
+        self.assertEqual(approvals.get(request.id).status, ApprovalStatus.EXPIRED)
+        with self.assertRaises(ApprovalStateError):
+            approvals.approve(request.id, decided_by="admin", decided_by_role="ADMIN")
+
+        live = approvals.create_pending(
+            actor="operator",
+            actor_role="OPERATOR",
+            action="read",
+            risk_level=RiskLevel.LOW,
+            reason="review",
+            command_id="system.memory",
+            policy_version="phase-3.6",
+            effective_permissions=("RUN_READ_SAFE",),
+            resource="command:system.memory",
+        )
+        with self.assertRaises(ApprovalStateError):
+            approvals.approve(live.id, decided_by="operator", decided_by_role="OPERATOR")
+
     def test_audit_receives_non_sensitive_approval_events(self) -> None:
         audit = InMemoryAuditStore()
         approvals = InMemoryApprovalStore(audit=audit)
@@ -294,6 +351,31 @@ class ApprovedExecutionContractTests(unittest.TestCase):
         self.assertEqual(plan.state, ExecutionPlanState.READY_TO_EXECUTE)
         self.assertEqual(plan.approval_id, request.id)
         self.assertEqual(plan.command_id, "system.memory")
+
+    def test_versioned_approval_rejects_changed_policy_snapshot(self) -> None:
+        request = self.approvals.create_pending(
+            actor="tester",
+            actor_role="DEVELOPER",
+            action="execute_read_safe",
+            risk_level=RiskLevel.LOW,
+            reason="plan authorization",
+            command_id="system.memory",
+            policy_version="phase-3.6",
+            effective_permissions=("RUN_READ_SAFE",),
+            resource="command:system.memory",
+        )
+        self.approvals.approve(request.id, decided_by="admin", decided_by_role="ADMIN")
+        plan = self.planner.build_plan(
+            actor="tester",
+            action="execute_read_safe",
+            command_id="system.memory",
+            approval_id=request.id,
+            policy_version="phase-3.7",
+            effective_permissions=("RUN_READ_SAFE",),
+            resource="command:system.memory",
+        )
+        self.assertEqual(plan.state, ExecutionPlanState.BLOCKED)
+        self.assertIn("policy version", plan.reason)
 
     def test_pending_approval_blocks_plan(self) -> None:
         request = self._approval()
@@ -761,6 +843,41 @@ class AuditAndLoggingTests(unittest.TestCase):
             self.assertEqual(record["risk_level"], "LOW")
             self.assertEqual(record["command_id"], "system.memory")
             self.assertEqual(store.events, (event,))
+            reloaded = JsonlAuditStore(
+                config=OperatorConfig(
+                    persistence_enabled=True,
+                    audit_to_disk=True,
+                    audit_path=audit_path,
+                )
+            )
+            self.assertEqual(reloaded.events, (event,))
+
+    def test_jsonl_audit_store_rejects_unsafe_existing_records_on_reload(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:
+            audit_path = Path(temp_dir) / "audit.jsonl"
+            audit_path.write_text(
+                json.dumps(
+                    {
+                        "timestamp": "2026-01-01T00:00:00+00:00",
+                        "actor": "tester",
+                        "action": "read",
+                        "risk_level": "LOW",
+                        "command_id": "system.memory",
+                        "result": "stdout=raw output",
+                        "authorization_required": False,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError):
+                JsonlAuditStore(
+                    config=OperatorConfig(
+                        persistence_enabled=True,
+                        audit_to_disk=True,
+                        audit_path=audit_path,
+                    )
+                )
 
     def test_jsonl_audit_store_fails_closed_on_secret_like_content(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT) as temp_dir:

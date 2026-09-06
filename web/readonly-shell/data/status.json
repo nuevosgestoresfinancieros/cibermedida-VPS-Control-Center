@@ -1,7 +1,7 @@
 {
   "product": {
     "name": "Cibermedida VPS Control Center",
-    "phase": "Fase 3.5 Interfaz solo lectura en castellano",
+    "phase": "Fase 3.6 Integración read-only",
     "context": "Producción protegida",
     "executionStatus": "Ejecución real bloqueada"
   },
@@ -9,6 +9,10 @@
     {
       "label": "Panel",
       "target": "dashboard"
+    },
+    {
+      "label": "Capacidades",
+      "target": "capabilities"
     },
     {
       "label": "Core Operator",
@@ -25,6 +29,70 @@
     {
       "label": "Límites de seguridad",
       "target": "safety-boundaries"
+    },
+    {
+      "label": "Inteligencia V3",
+      "target": "v3-intelligence"
+    },
+    {
+      "label": "Conversación",
+      "target": "conversation"
+    },
+    {
+      "label": "Aprobaciones",
+      "target": "approval-workflow"
+    },
+    {
+      "label": "Servidor",
+      "target": "server"
+    },
+    {
+      "label": "Proyectos",
+      "target": "projects"
+    },
+    {
+      "label": "Servicios",
+      "target": "services"
+    },
+    {
+      "label": "Git",
+      "target": "git"
+    },
+    {
+      "label": "Testing",
+      "target": "testing"
+    },
+    {
+      "label": "Deployments",
+      "target": "deployments"
+    },
+    {
+      "label": "Rollback",
+      "target": "rollbacks"
+    },
+    {
+      "label": "Backups",
+      "target": "backups"
+    },
+    {
+      "label": "Incidentes",
+      "target": "incidents"
+    },
+    {
+      "label": "Monitorización",
+      "target": "monitoring"
+    },
+    {
+      "label": "Seguridad",
+      "target": "security"
+    },
+    {
+      "label": "Agentes",
+      "target": "agents"
+    },
+    {
+      "label": "Configuración",
+      "target": "configuration"
     },
     {
       "label": "Fuente de datos",
@@ -47,8 +115,14 @@
     {
       "label": "Fase 3.5",
       "title": "Interfaz solo lectura en castellano",
-      "state": "current",
+      "state": "complete",
       "summary": "La navegación por teclado, los estados vacíos seguros y la presentación responsive se mantienen sin acciones operativas."
+    },
+    {
+      "label": "Fase 3.6",
+      "title": "Integración read-only",
+      "state": "current",
+      "summary": "La web puede consumir una API local segura con datos simulados y mantiene fallback estático."
     }
   ],
   "securityChain": [
@@ -135,9 +209,11 @@
     "Ver resumen documental",
     "Ver estados de política",
     "Ver ejemplos de auditoría solo metadatos",
+    "Consultar preparación de producción sin activar proveedores",
     "Navegación por secciones accesible con teclado",
     "Ver fuente de datos simulados estática",
-    "Sin controles de ejecución habilitados"
+    "Solicitar validaciones, builds y análisis read-only con sesión autorizada",
+    "Sin despliegues ni acciones modificadoras"
   ],
   "auditPreview": {
     "acción": "execution_gate_evaluated",
@@ -145,10 +221,440 @@
     "resultado": "blocked_by_default",
     "contenido": "solo metadatos"
   },
+  "capabilities": [
+    {
+      "capability_id": "authentication",
+      "label": "Autenticación y roles",
+      "phase": "Fase 3",
+      "state": "provision_required",
+      "live_data": false,
+      "provider": null,
+      "description": "Sesiones, CSRF y roles disponibles; la cuenta debe provisionarse explícitamente."
+    },
+    {
+      "capability_id": "chat",
+      "label": "Chat y planificación",
+      "phase": "Fase 4",
+      "state": "local_planner",
+      "live_data": false,
+      "provider": null,
+      "description": "Planificador local determinista; no hay proveedor IA externo conectado."
+    },
+  {
+    "capability_id": "audit",
+      "label": "Auditoría metadata-only",
+      "phase": "Fase 2/3",
+      "state": "in_memory",
+      "live_data": false,
+      "provider": null,
+    "description": "Registros en memoria sin secretos, stdout ni stderr crudos."
+  },
+  {
+    "capability_id": "approval_workflow",
+    "label": "Aprobaciones independientes",
+    "phase": "Fase 2/3",
+    "state": "in_memory",
+    "live_data": false,
+    "provider": null,
+    "description": "Solicitante y aprobador se separan; la persistencia JSON es opt-in y solo guarda metadatos."
+  },
+    {
+      "capability_id": "backups",
+      "label": "Backups y restore test",
+      "phase": "Fase 6",
+      "state": "contract_only",
+      "live_data": false,
+      "provider": null,
+      "description": "Ciclo contractual sin acceso a rutas ni contenido de backup."
+    },
+    {
+      "capability_id": "deployments",
+      "label": "Despliegues",
+      "phase": "Fase 7",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": null,
+      "description": "Preflight y aprobación disponibles; despliegue real deshabilitado."
+    },
+    {
+      "capability_id": "rollback",
+      "label": "Rollback",
+      "phase": "Fase 8",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": null,
+      "description": "Contrato preparado; no restaura código, archivos ni datos reales."
+    },
+    {
+      "capability_id": "monitoring",
+      "label": "Monitorización y anomalías",
+      "phase": "Fase 9/14",
+      "state": "snapshot_only",
+      "live_data": false,
+      "provider": null,
+      "description": "Evalúa snapshots aportados; no recoge métricas del VPS."
+    },
+    {
+      "capability_id": "controlled_execution",
+      "label": "Ejecución controlada",
+      "phase": "Fase 2/15",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": null,
+      "description": "La UI puede evaluar la cadena aprobada; el proveedor de ejecución permanece bloqueado por defecto."
+    },
+    {
+      "capability_id": "inventory",
+      "label": "Inventario READ_SAFE",
+      "phase": "Fase 1/3",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": null,
+      "description": "La colección READ_SAFE requiere una habilitación explícita y conserva el resultado solo en memoria."
+    },
+    {
+      "capability_id": "testing",
+      "label": "Testing Agent",
+      "phase": "Fase 5",
+      "state": "contract_only",
+      "live_data": false,
+      "provider": null,
+      "description": "El target repository y las métricas metadata-only están definidos; la ejecución requiere un provider explícito."
+    },
+    {
+      "capability_id": "builds",
+      "label": "Builds declarados",
+      "phase": "Fase 5/7",
+      "state": "contract_only",
+      "live_data": false,
+      "provider": null,
+      "description": "Los perfiles argv se declaran al arrancar; la ejecución conserva solo estado, retorno y duración."
+    },
+    {
+      "capability_id": "codex",
+      "label": "Integración Codex",
+      "phase": "Fase 5",
+      "state": "contract_only",
+      "live_data": false,
+      "provider": null,
+      "description": "El análisis Codex está definido sin CLI ni cambios de repositorio; el provider externo requiere revisión."
+    },
+    {
+      "capability_id": "knowledge_engine",
+      "label": "Knowledge Engine y gemelo digital",
+      "phase": "Fase 11",
+      "state": "metadata_only",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Registra relaciones declaradas sin descubrir automáticamente el VPS."
+    },
+    {
+      "capability_id": "impact_analysis",
+      "label": "Análisis de impacto e histórico",
+      "phase": "Fase 12",
+      "state": "metadata_only",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Calcula correlaciones y requisitos sobre evidencia aportada."
+    },
+    {
+      "capability_id": "predictive_analysis",
+      "label": "Análisis predictivo prudente",
+      "phase": "Fase 14",
+      "state": "metadata_only",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Calcula tendencias acotadas sin activar alertas operativas."
+    },
+    {
+      "capability_id": "project_autonomy",
+      "label": "Autonomía por proyecto",
+      "phase": "Fase 15",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Registra el nivel solicitado y mantiene la ejecución bloqueada."
+    },
+    {
+      "capability_id": "multi_server",
+      "label": "Catálogo multi-servidor",
+      "phase": "V3",
+      "state": "metadata_only",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Registra servidores declarados sin abrir conexiones."
+    },
+    {
+      "capability_id": "controlled_recovery",
+      "label": "Recuperación controlada",
+      "phase": "V3",
+      "state": "blocked_by_default",
+      "live_data": false,
+      "provider": "V3InsightsService",
+      "description": "Prepara planes vinculados a incidentes y exige aprobación independiente."
+    }
+  ],
   "dataSource": {
     "mode": "datos simulados estáticos",
     "path": "web/readonly-shell/data/status.json",
     "liveData": false,
     "backend": false
-  }
+  },
+  "dashboard": {
+    "healthScore": 92,
+    "healthLabel": "Estable",
+    "environment": "Laboratorio controlado",
+    "refreshed": "2026-09-06T09:30:00+02:00",
+    "mode": "Metadata-only",
+    "authorization": "Requerida",
+    "provider": "Deshabilitado",
+    "review": "Fase 3.6",
+    "metrics": [
+      { "label": "Proyectos catalogados", "value": "04", "detail": "declarados", "trend": "estable", "state": "stable" },
+      { "label": "Operaciones en espera", "value": "00", "detail": "sin ejecución", "trend": "controlado", "state": "stable" },
+      { "label": "Controles de seguridad", "value": "18", "detail": "activos", "trend": "100%", "state": "good" },
+      { "label": "Incidentes abiertos", "value": "00", "detail": "metadata-only", "trend": "estable", "state": "stable" }
+    ],
+    "infrastructure": [
+      { "label": "VPS / laboratorio", "type": "Servidor", "state": "declarado", "detail": "sin conexión operativa" },
+      { "label": "Control Center", "type": "Aplicación", "state": "activo", "detail": "API local + UI" },
+      { "label": "Knowledge Engine", "type": "Catálogo", "state": "metadata-only", "detail": "relaciones declaradas" }
+    ],
+    "activity": [
+      { "time": "09:30", "title": "Estado de seguridad evaluado", "detail": "execution_gate_evaluated · bloqueado por defecto", "kind": "security" },
+      { "time": "09:12", "title": "Contrato de operación actualizado", "detail": "manifiesto y hashes de integridad verificados", "kind": "change" },
+      { "time": "08:45", "title": "Catálogo de proyectos sincronizado", "detail": "datos declarados · sin stdout/stderr", "kind": "catalog" }
+    ],
+    "projects": [
+      { "name": "Control Center", "branch": "main", "status": "estable", "coverage": 100, "detail": "UI, API y contratos" },
+      { "name": "Core Operator", "branch": "main", "status": "protegido", "coverage": 100, "detail": "policy, approval y gate" },
+      { "name": "Documentación", "branch": "main", "status": "actualizada", "coverage": 86, "detail": "fases y autorización" },
+      { "name": "Laboratorio", "branch": "lab", "status": "aislado", "coverage": 72, "detail": "fixtures metadata-only" }
+    ]
+  },
+  "views": [
+    {
+      "id": "conversation",
+      "label": "Conversación",
+      "eyebrow": "Centro conversacional",
+      "title": "Planificador conversacional seguro",
+      "state": "read_only",
+      "summary": "La API local puede clasificar solicitudes y preparar planes metadata-only después de iniciar sesión.",
+      "items": [
+        "Requiere sesión y protección CSRF.",
+        "No hay proveedor IA externo conectado.",
+        "No se ejecutan diagnósticos ni operaciones desde el chat."
+      ]
+    },
+    {
+      "id": "approval-workflow",
+      "label": "Aprobaciones",
+      "eyebrow": "Autorización independiente",
+      "title": "Solicitudes y decisiones de aprobación",
+      "state": "read_only",
+      "summary": "La API permite recorrer el contrato de aprobación y evaluar una cadena READ_SAFE sin exponer salida operativa.",
+      "items": [
+        "El solicitante y el aprobador deben ser cuentas distintas.",
+        "La decisión queda registrada como metadatos.",
+        "La evaluación termina bloqueada si no hay proveedor explícito."
+      ]
+    },
+    {
+      "id": "server",
+      "label": "Servidor",
+      "eyebrow": "Estado del servidor",
+      "title": "Superficie segura del servidor",
+      "state": "read_only",
+      "summary": "La API local puede mostrar contratos y salud interna, pero no consulta el VPS real.",
+      "items": [
+        "Inventario READ_SAFE: bloqueado hasta habilitación explícita.",
+        "Health del Core Operator: disponible sin sondas de red.",
+        "Ejecución real: bloqueada por diseño.",
+        "La colección validada no crea INVENTORY.json."
+      ]
+    },
+    {
+      "id": "projects",
+      "label": "Proyectos",
+      "eyebrow": "Inventario de proyectos",
+      "title": "Proyectos y Git declarados",
+      "state": "read_only",
+      "summary": "La API puede recoger únicamente rama, estado y HEAD mediante un proveedor READ_SAFE explícito.",
+      "items": [
+        "La colección no devuelve stdout ni stderr crudos.",
+        "No se crean ramas, no se hace push y no se ejecuta merge.",
+        "Sin proveedor habilitado, el estado permanece blocked_by_default."
+      ]
+    },
+    {
+      "id": "services",
+      "label": "Servicios",
+      "eyebrow": "Servicios del VPS",
+      "title": "Servicios no consultados",
+      "state": "blocked",
+      "summary": "La UI no ejecuta systemd, PM2, Docker, Apache ni SSH y no lee sus estados reales.",
+      "items": [
+        "Sin reinicios ni modificaciones.",
+        "Sin lectura de logs o procesos.",
+        "Sin llamadas a servicios del sistema."
+      ]
+    },
+    {
+      "id": "git",
+      "label": "Git",
+      "eyebrow": "Control de cambios",
+      "title": "Git disponible como contrato",
+      "state": "read_only",
+      "summary": "La política exige ramas y revisión, pero esta UI no crea ramas ni modifica repositorios.",
+      "items": [
+        "Main protegida por flujo de ramas.",
+        "Sin merge ni push desde la web.",
+        "Los cambios deben pasar por revisión y pruebas."
+      ]
+    },
+    {
+      "id": "testing",
+      "label": "Testing",
+      "eyebrow": "Validación",
+      "title": "Validación y tests acotados",
+      "state": "read_only",
+      "summary": "El Validator evalúa checks declarados y puede solicitar el target repository con un provider explícito.",
+      "items": [
+        "Los checks los aporta una capa autorizada.",
+        "El runner solo acepta el target repository y descarta la salida.",
+        "Sin provider explícito, la ejecución permanece blocked_by_default."
+      ]
+    },
+    {
+      "id": "builds",
+      "label": "Builds",
+      "eyebrow": "Construcción declarada",
+      "title": "Builds acotados por perfil",
+      "state": "read_only",
+      "summary": "La API puede ejecutar únicamente un perfil argv declarado al arrancar y conserva métricas sin salida cruda.",
+      "items": [
+        "El target selecciona un perfil de configuración, no un comando de la petición.",
+        "El provider requiere RUN_BUILDS y una sesión autorizada.",
+        "No se modifican servicios, repositorios ni archivos fuera del proyecto declarado."
+      ]
+    },
+    {
+      "id": "deployments",
+      "label": "Deployments",
+      "eyebrow": "Despliegues",
+      "title": "Preflight de despliegue sin ejecución",
+      "state": "blocked",
+      "summary": "La API puede registrar checks, backup y aprobación independiente, pero no despliega.",
+      "items": [
+        "Requiere autenticación, CSRF y autorización.",
+        "Requiere tests, build, impacto y backup verificado.",
+        "El ControlledExecutor permanece bloqueado."
+      ]
+    },
+    {
+      "id": "rollbacks",
+      "label": "Rollback",
+      "eyebrow": "Recuperación controlada",
+      "title": "Plan de rollback sin ejecución",
+      "state": "blocked",
+      "summary": "La API registra preparación y aprobación independiente, pero el proveedor de rollback permanece deshabilitado.",
+      "items": [
+        "Se exige una cuenta aprobadora distinta.",
+        "No se restauran código, archivos ni datos.",
+        "La solicitud de ejecución queda bloqueada por defecto."
+      ]
+    },
+    {
+      "id": "backups",
+      "label": "Backups",
+      "eyebrow": "Protección de datos",
+      "title": "Catálogo de backup simulado",
+      "state": "blocked",
+      "summary": "La API mantiene el ciclo prepare, verify y restore test únicamente en memoria.",
+      "items": [
+        "No hay acceso a rutas ni contenido de backup.",
+        "No hay persistencia automática.",
+        "El restore test es solo contractual."
+      ]
+    },
+    {
+      "id": "incidents",
+      "label": "Incidentes",
+      "eyebrow": "Gestión de incidentes",
+      "title": "Ciclo de incidentes en memoria",
+      "state": "read_only",
+      "summary": "La API registra estado, notas de investigación y resolución sin leer logs ni ejecutar mitigaciones.",
+      "items": [
+        "No se analizan logs reales.",
+        "No se correlacionan cambios de producción automáticamente.",
+        "No se ejecutan recuperaciones automáticas."
+      ]
+    },
+    {
+      "id": "monitoring",
+      "label": "Monitorización",
+      "eyebrow": "Observabilidad",
+      "title": "Monitorización de metadatos",
+      "state": "blocked",
+      "summary": "El servicio puede evaluar snapshots aportados, pero no recoge métricas reales ni genera alertas externas.",
+      "items": [
+        "Health checks de red: deshabilitados.",
+        "Métricas: datos reales no disponibles.",
+        "Alertas: no se generan desde esta aplicación."
+      ]
+    },
+    {
+      "id": "security",
+      "label": "Seguridad",
+      "eyebrow": "Centro de seguridad",
+      "title": "Límites de seguridad activos",
+      "state": "read_only",
+      "summary": "La UI muestra políticas y límites, pero no modifica firewall, SSH, usuarios ni servicios.",
+      "items": [
+        "Denegación por defecto.",
+        "Aprobación separada para operaciones sensibles.",
+        "Sin exposición de secretos ni credenciales."
+      ]
+    },
+    {
+      "id": "agents",
+      "label": "Agentes",
+      "eyebrow": "Agent Manager",
+      "title": "Agent Manager de planificación",
+      "state": "read_only",
+      "summary": "Los agentes están catalogados; Codex puede preparar análisis metadata-only en laboratorio, siempre sin modificar repositorios.",
+      "items": [
+        "Supervisor, Planner y Validator: contratos locales.",
+        "Codex: provider sintético en laboratorio o CLI read-only sobre proyectos declarados.",
+        "Deploy y Backup: raíces declaradas, sin gestores de servicios ni infraestructura.",
+        "Sin ejecución concurrente de agentes."
+      ]
+    },
+    {
+      "id": "configuration",
+      "label": "Configuración",
+      "eyebrow": "Configuración segura",
+      "title": "Configuración por defecto cerrada",
+      "state": "read_only",
+      "summary": "La configuración del Core Operator mantiene persistencia, red y ejecución real deshabilitadas.",
+      "items": [
+        "Sin carga de .env.",
+        "Sin logs ni auditoría a disco por defecto.",
+      "Sin configuración habilitante para producción."
+      ]
+    },
+    {
+      "id": "v3-intelligence",
+      "label": "Inteligencia V3",
+      "eyebrow": "Knowledge Engine y recuperación",
+      "title": "Contratos V3 metadata-only",
+      "state": "read_only",
+      "summary": "Permite registrar gemelo digital, tendencias, servidores y planes de recuperación declarados sin conectar con el VPS.",
+      "items": [
+        "No descubre hosts ni relaciones automáticamente.",
+        "Las predicciones solo calculan tendencias sobre snapshots aportados.",
+        "La autonomía y la recuperación permanecen bloqueadas por defecto."
+      ]
+    }
+  ]
 }

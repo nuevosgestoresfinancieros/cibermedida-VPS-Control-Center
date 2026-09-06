@@ -51,6 +51,7 @@ provider explícito; sin él permanece mock y bloqueado por defecto.
 - [docs/phase-2-core-operator.md](./docs/phase-2-core-operator.md): cierre real de Fase 2.
 - [docs/phase-3-authz-contract.md](./docs/phase-3-authz-contract.md): contrato futuro de autenticacion y autorizacion.
 - [docs/phase-3-readonly-integration.md](./docs/phase-3-readonly-integration.md): API local y web read-only integrada.
+- [docs/client-guide.md](./docs/client-guide.md): explicación para clientes del propósito, alcance y límites del programa.
 - [docs/integration-status.md](./docs/integration-status.md): matriz de fases, laboratorio y requisitos de produccion.
 - [docs/production-activation-runbook.md](./docs/production-activation-runbook.md): precondiciones y composición explícita para producción.
 - [docs/CURRENT_ARCHITECTURE.md](./docs/CURRENT_ARCHITECTURE.md): arquitectura real de la integración vNext.

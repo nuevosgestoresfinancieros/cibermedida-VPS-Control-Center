@@ -1,0 +1,32 @@
+[Unit]
+Description=Cibermedida VPS Control Center (read-only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cibermedida
+Group=cibermedida
+WorkingDirectory=/var/www/cibermedida-vps-control-center
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m api.readonly_server --host 127.0.0.1 --port 8766 --secure-cookies --https-terminated
+Restart=on-failure
+RestartSec=5s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadWritePaths=/run
+
+[Install]
+WantedBy=multi-user.target

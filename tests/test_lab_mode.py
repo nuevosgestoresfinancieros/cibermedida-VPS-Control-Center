@@ -1,9 +1,11 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from api import readonly_server
 from api.readonly_server import PROJECT_ROOT, parse_bootstrap_user, prepare_lab_environment, validate_state_root
-from control_center.auth import Role
+from control_center.auth import JsonUserStore, Role
 
 
 class LabModeTests(unittest.TestCase):
@@ -52,6 +54,42 @@ class LabModeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare_lab_environment(Path("relative-lab"))
 
+
+    def test_state_root_persists_bootstrap_user_outside_lab_mode(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cibermedida-production-state-") as temporary_directory:
+            state_root = Path(temporary_directory)
+
+            class FakeServer:
+                def serve_forever(self) -> None:
+                    raise KeyboardInterrupt
+
+                def server_close(self) -> None:
+                    return None
+
+            def capture_server(*_args, **_kwargs):
+                return FakeServer()
+
+            argv = [
+                "readonly_server",
+                "--state-root",
+                str(state_root),
+                "--bootstrap-username",
+                "admin",
+                "--bootstrap-role",
+                "ADMIN",
+            ]
+            with patch("sys.argv", argv), patch(
+                "api.readonly_server.getpass", return_value="admin-password-123"
+            ), patch("api.readonly_server.create_server", side_effect=capture_server):
+                readonly_server.main()
+
+            users_path = state_root / "users.json"
+            self.assertTrue(users_path.is_file())
+            users = JsonUserStore(users_path).load()
+            self.assertEqual(len(users), 1)
+            user = next(iter(users.values()))
+            self.assertEqual(user.username, "admin")
+            self.assertEqual(user.role, Role.ADMIN)
 
 if __name__ == "__main__":
     unittest.main()

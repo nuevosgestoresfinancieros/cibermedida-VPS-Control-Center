@@ -2003,9 +2003,13 @@ def main() -> None:
         args_audit_path = args_audit_path or state_root / "audit.jsonl"
         args_approval_state = args_approval_state or state_root / "approvals.json"
 
-    auth_state = args_auth_state if lab_paths is not None else args.auth_state
-    audit_path = args_audit_path if lab_paths is not None else args.audit_path
-    approval_state = args_approval_state if lab_paths is not None else args.approval_state
+    # Keep the resolved paths for both lab and production profiles. In
+    # production, --state-root derives the opt-in users, audit, and approval
+    # paths above; falling back to the raw CLI values would silently disable
+    # persistence when only --state-root is supplied.
+    auth_state = args_auth_state
+    audit_path = args_audit_path
+    approval_state = args_approval_state
     user_store = JsonUserStore(auth_state) if auth_state else None
     audit_sink = (
         JsonlAuditSink(

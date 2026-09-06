@@ -26,6 +26,10 @@ class ControlledExecutionResult:
     risk_level: RiskLevel
     approval_id: str | None
     reason: str
+    operation_id: str | None = None
+    operation_hash: str | None = None
+    plan_hash: str | None = None
+    approval_hash: str | None = None
 
 
 class ControlledExecutor:
@@ -50,7 +54,7 @@ class ControlledExecutor:
 
         unsafe_reason = self._unsafe_metadata_reason(decision)
         if unsafe_reason:
-            return self._rejected(safe_actor, safe_action, safe_command_id, decision.risk_level, safe_approval_id, unsafe_reason)
+            return self._rejected(safe_actor, safe_action, safe_command_id, decision.risk_level, safe_approval_id, unsafe_reason, decision=decision)
 
         if decision.state is not ExecutionGateState.ELIGIBLE_FOR_CONTROLLED_EXECUTION:
             return self._rejected(
@@ -60,6 +64,7 @@ class ControlledExecutor:
                 decision.risk_level,
                 safe_approval_id,
                 f"execution gate decision is {decision.state.value}",
+                decision=decision,
             )
 
         policy_decision = self._policy_decision(safe_actor, safe_action, safe_command_id)
@@ -71,6 +76,7 @@ class ControlledExecutor:
                 policy_decision.risk_level,
                 safe_approval_id,
                 policy_decision.reason,
+                decision=decision,
             )
         if decision.risk_level is not policy_decision.risk_level:
             return self._rejected(
@@ -80,6 +86,7 @@ class ControlledExecutor:
                 policy_decision.risk_level,
                 safe_approval_id,
                 "risk metadata mismatch",
+                decision=decision,
             )
         if not _risk_allowed(decision.risk_level, self.max_risk_level):
             return self._blocked(
@@ -89,9 +96,10 @@ class ControlledExecutor:
                 decision.risk_level,
                 safe_approval_id,
                 "risk exceeds controlled executor limit",
+                decision=decision,
             )
         if not safe_approval_id:
-            return self._blocked(safe_actor, safe_action, safe_command_id, decision.risk_level, safe_approval_id, "approval is required")
+            return self._blocked(safe_actor, safe_action, safe_command_id, decision.risk_level, safe_approval_id, "approval is required", decision=decision)
 
         return self._blocked(
             safe_actor,
@@ -100,6 +108,7 @@ class ControlledExecutor:
             decision.risk_level,
             safe_approval_id,
             "controlled executor is blocked by default",
+            decision=decision,
         )
 
     def _policy_decision(self, actor: str, action: str, command_id: str):
@@ -129,6 +138,8 @@ class ControlledExecutor:
         risk_level: RiskLevel,
         approval_id: str | None,
         reason: str,
+        *,
+        decision: ExecutionGateDecision,
     ) -> ControlledExecutionResult:
         self._audit(
             actor=actor,
@@ -146,6 +157,10 @@ class ControlledExecutor:
             risk_level=risk_level,
             approval_id=approval_id,
             reason=reason,
+            operation_id=decision.operation_id,
+            operation_hash=decision.operation_hash,
+            plan_hash=decision.plan_hash,
+            approval_hash=decision.approval_hash,
         )
 
     def _rejected(
@@ -156,6 +171,8 @@ class ControlledExecutor:
         risk_level: RiskLevel,
         approval_id: str | None,
         reason: str,
+        *,
+        decision: ExecutionGateDecision,
     ) -> ControlledExecutionResult:
         self._audit(
             actor=actor,
@@ -173,6 +190,10 @@ class ControlledExecutor:
             risk_level=risk_level,
             approval_id=approval_id,
             reason=reason,
+            operation_id=decision.operation_id,
+            operation_hash=decision.operation_hash,
+            plan_hash=decision.plan_hash,
+            approval_hash=decision.approval_hash,
         )
 
     def _audit(

@@ -1,18 +1,22 @@
-# Fase 3.4 - Contrato Futuro De Autenticacion Y Autorizacion Web
+# Fase 3.4 - Contrato De Autenticacion Y Autorizacion Web
 
 ## Estado Y Objetivo
 
-Este documento define un contrato conceptual para una futura capa de
-autenticacion y autorizacion del Web Control Center. No implementa identidad,
-sesiones, usuarios, permisos activos ni conexion con el Core Operator.
+Este documento define el contrato de autenticacion y autorizacion del Web
+Control Center. La rama integrada ya contiene una implementacion local/de
+laboratorio con usuarios provisionados explicitamente, sesiones HttpOnly,
+CSRF, roles, permisos, rate limiting, auditoria metadata-only y conexion
+contractual con Core Operator. Esa implementacion no constituye identidad de
+produccion ni habilita ejecucion real.
 
 El objetivo futuro es identificar de forma verificable a cada persona, limitar
 lo que puede ver o solicitar segun su rol y conservar trazabilidad suficiente
 para que ninguna accion eluda las politicas del sistema.
 
-La UI actual permanece estatica, local, alimentada por datos mock y
-exclusivamente read-only. La presencia de un rol o permiso en este documento no
-concede ninguna capacidad actual.
+La UI mantiene fallback estatico y funciona contra la API local en el perfil de
+laboratorio. La presencia de un rol o permiso en este documento no concede por
+si sola ninguna capacidad: la API vuelve a evaluar identidad, sesion, permiso,
+politica y estado del workflow.
 
 ## Principios Del Contrato
 
@@ -87,12 +91,15 @@ y auditada.
 - `RUN_READ_SAFE`
 - `RUN_READ_SENSITIVE`
 - `RUN_PRIVILEGED`
+- `RUN_TESTS`
+- `RUN_BUILDS`
 - `DEPLOY`
 - `ROLLBACK`
 
-Estos nombres describen autorizaciones futuras, no capacidades implementadas.
-Ninguno esta activo en Fase 3.4. Tener un permiso no evita una decision
-`approval_required` o `deny`, ni cambia el estado actual
+Estos nombres describen autorizaciones sujetas a politica. En laboratorio se
+pueden recorrer sus contratos con providers declarados y datos aislados, pero
+las acciones modificadoras y la ejecucion real siguen bloqueadas. Tener un
+permiso no evita una decision `approval_required` o `deny`, ni cambia el estado
 `blocked_by_default` del ControlledExecutor.
 
 ### Permisos Administrativos
@@ -120,6 +127,8 @@ La siguiente matriz es una propuesta de maximos futuros. Cada marca significa
 | `RUN_READ_SAFE` | No | Si | Si | Si |
 | `RUN_READ_SENSITIVE` | No | No | Si | Si |
 | `RUN_PRIVILEGED` | No | No | Si | Si |
+| `RUN_TESTS` | No | Si | Si | Si |
+| `RUN_BUILDS` | No | Si | Si | Si |
 | `MANAGE_POLICIES` | No | No | No | Si |
 | `MANAGE_USERS` | No | No | No | Si |
 | `DEPLOY` | No | No | Si | Si |
@@ -165,20 +174,24 @@ un bypass administrativo.
 La interfaz debe distinguir entre contenido no autorizado, no disponible y
 bloqueado por politica sin filtrar la existencia de recursos sensibles.
 
-## Capacidades No Disponibles Para Ningun Rol
+## Capacidades No Disponibles Para Ningun Rol En Produccion
 
-En Fase 3.4 ningun rol puede:
+En produccion ningun rol puede:
 
-- iniciar sesion o mantener una sesion real;
-- consultar identidades o usuarios reales;
+- activar una identidad de produccion no provisionada y revisada;
+- convertir una sesion de laboratorio en una sesion de produccion;
 - solicitar o aprobar operaciones reales;
 - ejecutar comandos desde la web;
 - ejecutar `RUN_READ_SAFE`, `RUN_READ_SENSITIVE` o `RUN_PRIVILEGED`;
 - desplegar, reiniciar, modificar o revertir servicios;
-- administrar politicas o usuarios;
+- administrar politicas o usuarios sin un proveedor de produccion revisado;
 - leer secretos, salidas crudas, backups o bases de datos;
-- conectar la UI con Core Operator;
+- conectar la UI con un Core Operator de produccion sin un contrato cerrado;
 - cambiar `blocked_by_default`.
+
+En laboratorio sí se pueden probar login, sesiones, aprobaciones y la API
+autenticada sobre fixtures aislados. Esas pruebas no autorizan acceso al VPS,
+no leen secretos y no activan servicios.
 
 ## Relacion Futura Con PolicyEngine
 
@@ -204,7 +217,7 @@ Identity
   -> ControlledExecutor
 ```
 
-## Relacion Futura Con Approval Workflow
+## Contrato Implementado De Approval Workflow
 
 Una solicitud de aprobacion debe vincular, como minimo:
 
@@ -246,17 +259,17 @@ las politicas. Una aprobacion valida solo permite avanzar a
   vertical.
 - Politica de minimizacion, retencion y redaccion de datos.
 
-## NO-GO Actual
+## NO-GO Actual Para Produccion
 
-- No activar login real.
-- No activar ni anadir backend.
-- No activar botones operativos.
-- No conectar usuarios reales.
-- No ejecutar acciones desde la UI.
+- No activar identidades o usuarios reales sin un proveedor de producción revisado.
+- No exponer la API local fuera de un transporte revisado.
+- No activar providers productivos.
+- No conectar secretos o credenciales reales.
+- No ejecutar acciones modificadoras desde la UI.
 - No leer ni exponer secretos.
 - No exponer logs crudos, backups ni datos de bases de datos.
 - No aceptar autorizacion basada solo en controles del navegador.
-- No conectar la UI con Core Operator.
+- No conectar la UI con un Core Operator de producción sin transporte y autorización revisados.
 
 ## GO Futuro Para Implementar Autenticacion Real
 
@@ -290,20 +303,32 @@ La conexion solo podra plantearse cuando:
 
 ## Riesgos Pendientes
 
-- No existe proveedor de identidad seleccionado.
-- No existe modelo persistente de usuarios, roles o permisos.
+- `JsonUserStore`, sesiones, CSRF, rate limiting y TOTP están implementados para
+  laboratorio; todavía no sustituyen un proveedor de identidad de producción.
 - No estan definidos tenancy, alcance por proyecto ni delegacion temporal.
 - La matriz propuesta requiere revision humana y analisis de segregacion de
   funciones.
-- No existe mecanismo de revocacion inmediata ni gestion de sesiones.
-- Approval workflow sigue siendo contractual y en memoria.
-- No existe API web autorizada ni modelo de amenazas completo.
-- No estan definidas retencion, proteccion y acceso a auditoria persistente.
+- La revocación de sesiones se limita al proceso local; falta integración con
+  identidad externa y revocación distribuida.
+- Approval workflow tiene store en memoria por defecto y `JsonApprovalStore`
+  metadata-only opt-in; falta una persistencia de producción con recuperación
+  externa.
+- Existe una API web local autenticada y autorizada; falta el modelo de amenazas
+  y la terminación HTTPS de producción.
+- La auditoría JSONL local tiene retención y locking acotados; falta protección,
+  cifrado y recuperación externa aprobados.
 - No existen pruebas de seguridad web, carga ni recuperacion de cuenta.
 - La UI actual no debe interpretarse como una frontera de seguridad.
 
-## Estado De Cierre De Fase 3.4
+## Estado Actual De La Integracion
 
-Esta fase entrega un contrato documental. No habilita autenticacion,
-autorizacion, sesiones, usuarios, permisos activos, backend ni ejecucion. La UI
-read-only y el ControlledExecutor conservan sus bloqueos actuales.
+El contrato y su implementación local/de laboratorio están integrados. La API
+autenticada, los roles, la auditoría, los snapshots de autorización, la
+caducidad de aprobaciones y los workflows se prueban con fixtures y
+persistencia opt-in segura. Los providers declarados de chat, tests, builds,
+Codex, backup, release/rollback, monitorización READ_SAFE e inventario pueden
+habilitarse únicamente mediante rutas, perfiles y manifiestos explícitos. La
+identidad de producción, HTTPS, infraestructura externa, cifrado, recuperación
+y ejecución modificadora siguen pendientes de revisión humana y autorización
+externa. La UI conserva los estados `blocked_by_default` para lo que no está
+activado.

@@ -5,6 +5,17 @@ const fallbackStatus = {
     "context": "Producción protegida",
     "executionStatus": "Ejecución real bloqueada"
   },
+  "runtime": {
+    "serviceActivation": {
+      "provider": "fixed-service-activation",
+      "state": "blocked_by_default",
+      "serviceUnit": "cibermedida-vps-control-center.service",
+      "project": "control-center",
+      "operations": ["deploy", "rollback"],
+      "enabled": false,
+      "runnerConfigured": false
+    }
+  },
   "navigation": [
     {
       "label": "Panel",
@@ -860,6 +871,20 @@ function renderDataSource(source) {
   document.querySelector("[data-source-path]").textContent = dataSource.path;
   document.querySelector("[data-source-live]").textContent = dataSource.liveData ? "sí" : "no";
   document.querySelector("[data-source-backend]").textContent = dataSource.backend ? "sí, solo lectura" : "no";
+}
+
+function renderServiceActivation(runtime) {
+  const node = document.querySelector("[data-service-activation]");
+  if (!node) return;
+  const activation = runtime && runtime.serviceActivation;
+  const unit = activation && activation.serviceUnit
+    ? activation.serviceUnit
+    : "cibermedida-vps-control-center.service";
+  if (!activation || activation.state === "blocked_by_default") {
+    node.textContent = `Activación de servicio: bloqueada por defecto · ${unit}`;
+    return;
+  }
+  node.textContent = `Activación de servicio: ${activation.state} · ${unit}`;
 }
 
 function renderCapabilities(capabilities) {
@@ -2327,6 +2352,7 @@ function render(status, source) {
   appendList(document.querySelector("[data-capabilities]"), status.uiCapabilities);
   renderAudit(status.auditPreview);
   renderDataSource(status.dataSource);
+  renderServiceActivation(status.runtime);
   renderCapabilities(status.capabilities);
   renderDashboardVisuals(status.dashboard);
   renderOperationalSections(status.views);

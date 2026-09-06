@@ -31,6 +31,7 @@ from .operations import OperationService
 from .pipeline import ExecutionPipelineService
 from .projects import ProjectProvider, ProjectService
 from .rollbacks import RollbackManager, RollbackProvider
+from .service_activation import ServiceActivationProvider
 from .state import JsonMetadataStore
 from .testing import TestProvider, TestService
 from .validation import ValidatorService
@@ -60,6 +61,7 @@ class ControlCenterApplication:
         deployment_provider: DeploymentProvider | None = None,
         deployment_validator: DeploymentValidator | None = None,
         deployment_state_store: JsonMetadataStore | None = None,
+        service_activation: ServiceActivationProvider | None = None,
         rollback_provider: RollbackProvider | None = None,
         rollback_state_store: JsonMetadataStore | None = None,
         execution_provider: ExecutionProvider | None = None,
@@ -93,6 +95,7 @@ class ControlCenterApplication:
         self.policy = PolicyEngine()
         self.policy_version = policy_version
         self.approvals = approval_store or InMemoryApprovalStore()
+        self.service_activation = service_activation
         self.monitoring = MonitoringService(
             provider=monitoring_provider,
             provider_enabled=providers_enabled and monitoring_provider is not None,
@@ -158,6 +161,7 @@ class ControlCenterApplication:
             provider_enabled=providers_enabled and deployment_provider is not None,
             post_validator=deployment_validator,
             state_store=deployment_state_store,
+            service_activation=service_activation,
         )
         self.execution = ControlledExecutionService(
             auth=self.auth,
@@ -180,6 +184,7 @@ class ControlCenterApplication:
             provider=rollback_provider,
             provider_enabled=providers_enabled and rollback_provider is not None,
             state_store=rollback_state_store,
+            service_activation=service_activation,
         )
         self.conversation = ConversationService(
             auth=self.auth,

@@ -30,6 +30,7 @@ from control_center import (
     ActivationManifestError,
     FilesystemBackupProvider,
     FilesystemReleaseProvider,
+    FixedServiceActivation,
     DeclaredCommandBuildProvider,
     SyntheticBuildProvider,
     CodexCliProvider,
@@ -75,6 +76,7 @@ from core_operator import (
     default_config,
 )
 from core_operator.audit import RAW_STREAM_PATTERN, contains_secret
+from control_center.service_activation import DEFAULT_SERVICE_UNIT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = PROJECT_ROOT / "web" / "readonly-shell"
@@ -122,6 +124,23 @@ def build_core_health() -> dict[str, Any]:
     }
 
 
+def build_service_activation_status(application: ControlCenterApplication | None = None) -> dict[str, Any]:
+    """Expose the fixed-service boundary without exposing runner internals."""
+
+    provider = getattr(application, "service_activation", None) if application is not None else None
+    if isinstance(provider, FixedServiceActivation):
+        return provider.status()
+    return {
+        "provider": FixedServiceActivation.name,
+        "state": "blocked_by_default",
+        "serviceUnit": DEFAULT_SERVICE_UNIT,
+        "project": "control-center",
+        "operations": ["deploy", "rollback"],
+        "enabled": False,
+        "runnerConfigured": False,
+    }
+
+
 def build_api_status(application: ControlCenterApplication | None = None) -> dict[str, Any]:
     status = copy.deepcopy(load_mock_status())
     if application is not None:
@@ -148,6 +167,7 @@ def build_api_status(application: ControlCenterApplication | None = None) -> dic
         projects_enabled and getattr(application.projects.provider, "live_data", False)
     )
     status["runtime"] = {
+        "serviceActivation": build_service_activation_status(application),
         "transport": "local-readonly-api",
         "liveData": monitoring_live or inventory_live or projects_live,
         "execution": "provider_enabled" if execution_enabled else "blocked_by_default",
@@ -2170,6 +2190,7 @@ def main() -> None:
         if release_artifact_root and release_root
         else None
     )
+    service_activation = FixedServiceActivation() if release_provider is not None else None
     chat_provider = None
     if args.chat_endpoint:
         chat_provider = OpenAICompatibleChatProvider(
@@ -2207,6 +2228,7 @@ def main() -> None:
         deployment_provider=release_provider,
         deployment_validator=release_provider,
         deployment_state_store=deployment_state_store,
+        service_activation=service_activation,
         rollback_provider=release_provider,
         rollback_state_store=rollback_state_store,
         chat_provider=chat_provider,

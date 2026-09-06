@@ -77,6 +77,15 @@ from .projects import (
     SyntheticProjectProvider,
 )
 from .rollbacks import RollbackManager, RollbackPlan, RollbackProvider, RollbackProviderEvidence, RollbackState
+from .service_activation import (
+    DEFAULT_SERVICE_UNIT,
+    FixedServiceActivation,
+    ServiceActivationEvidence,
+    ServiceActivationProvider,
+    ServiceActivationRequest,
+    ServiceActivationRunner,
+    ServiceActivationState,
+)
 from .state import JsonMetadataStore
 from .testing import InProcessTestProvider, SyntheticTestProvider, TestEvidence, TestExecutionState, TestProvider, TestRun, TestService
 from .validation import ValidationReport, ValidationState, ValidatorService
@@ -215,7 +224,14 @@ __all__ = [
     "RollbackProvider",
     "RollbackProviderEvidence",
     "RollbackState",
+    "DEFAULT_SERVICE_UNIT",
+    "FixedServiceActivation",
     "JsonMetadataStore",
+    "ServiceActivationEvidence",
+    "ServiceActivationProvider",
+    "ServiceActivationRequest",
+    "ServiceActivationRunner",
+    "ServiceActivationState",
     "User",
     "UserStore",
     "ValidationReport",

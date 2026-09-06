@@ -5,6 +5,20 @@
     "context": "Producción protegida",
     "executionStatus": "Ejecución real bloqueada"
   },
+  "runtime": {
+    "serviceActivation": {
+      "provider": "fixed-service-activation",
+      "state": "blocked_by_default",
+      "serviceUnit": "cibermedida-vps-control-center.service",
+      "project": "control-center",
+      "operations": [
+        "deploy",
+        "rollback"
+      ],
+      "enabled": false,
+      "runnerConfigured": false
+    }
+  },
   "navigation": [
     {
       "label": "Panel",

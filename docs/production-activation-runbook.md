@@ -78,6 +78,35 @@ comandos ni `stdout`/`stderr`. El loader rechaza esos valores, autoaprobaciones,
 timestamps sin zona horaria, enlaces simbolicos y rutas dentro de `.env`,
 `.git`, `logs` o `backups`.
 
+## Contrato De Activacion Fija
+
+La aplicación solo reconoce como destino permitido
+`cibermedida-vps-control-center.service` y las operaciones `deploy` y
+`rollback` para el proyecto `control-center`.
+
+Cuando se declara un proveedor de releases en el servidor HTTP, se inyecta un
+`FixedServiceActivation` sin runner y con `enabled=False`. Por tanto, una
+aprobación válida, un backup verificado y una validación posterior no convierten
+por sí solos la operación en ejecutable: el resultado sigue siendo
+`blocked_by_default`.
+
+El endpoint `GET /api/status` expone esta frontera en
+`runtime.serviceActivation`: la unidad fija, las operaciones `deploy` y
+`rollback`, y los flags `enabled` y `runnerConfigured`. En la composición
+actual ambos flags son falsos y el estado visible es `blocked_by_default`.
+Ese resumen no constituye autorización ni permite activar el servicio.
+
+Antes de invocar cualquier provider de releases, deployments y rollbacks ejecutan
+un preflight de esta frontera. Si no devuelve estado ready, el provider ni siquiera
+se llama; solo una evidencia posterior activated y verificada permite marcar la
+operacion como completada.
+
+El contrato exige solicitante y aprobador distintos, referencia de aprobación,
+release y evidencia acotada sin secretos ni `stdout`/`stderr`. Una futura
+implementación de runner deberá pasar una revisión independiente de privilegios,
+comandos exactos, health check, expiración y rollback. Este repositorio no
+instala un helper privilegiado ni invoca `systemctl`, `sudo` o un shell.
+
 ## Composicion Explícita
 
 El siguiente ejemplo es una plantilla operativa. Los paths son placeholders y

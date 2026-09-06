@@ -13,6 +13,13 @@ from core_operator.audit import RAW_STREAM_PATTERN, contains_secret
 from .audit import MetadataAuditLog
 from .auth import AuthService, Permission
 from .backups import BackupManager
+from .service_activation import (
+    DEFAULT_SERVICE_UNIT,
+    ServiceActivationEvidence,
+    ServiceActivationProvider,
+    ServiceActivationRequest,
+    ServiceActivationState,
+)
 from .state import JsonMetadataStore
 
 
@@ -96,6 +103,7 @@ class DeploymentManager:
         provider_enabled: bool = False,
         post_validator: DeploymentValidator | None = None,
         state_store: JsonMetadataStore | None = None,
+        service_activation: ServiceActivationProvider | None = None,
     ) -> None:
         self.auth = auth
         self.audit = audit
@@ -104,6 +112,7 @@ class DeploymentManager:
         self.provider_enabled = provider_enabled
         self.post_validator = post_validator
         self.state_store = state_store
+        self.service_activation = service_activation
         self._plans: dict[str, DeploymentPlan] = {}
         if self.state_store is not None:
             for raw_plan in self.state_store.load():
@@ -218,6 +227,11 @@ class DeploymentManager:
     def execute(self, *, session_id: str, deployment_id: str) -> DeploymentPlan:
         user = self.auth.require(session_id, Permission.DEPLOY)
         plan = self._get(deployment_id)
+        preflight = (
+            self._preflight_service(plan)
+            if plan.state is DeploymentState.APPROVED and self.service_activation is not None
+            else None
+        )
         if plan.state is not DeploymentState.APPROVED:
             if plan.state in {
                 DeploymentState.BLOCKED,
@@ -226,6 +240,17 @@ class DeploymentManager:
             }:
                 raise ValueError("deployment is not approved")
             updated = replace(plan, state=DeploymentState.BLOCKED, reason="deployment requires independent approval")
+        elif preflight is not None and not _valid_activation_evidence(preflight, self._activation_request(plan)):
+            updated = replace(plan, state=DeploymentState.FAILED, reason="service activation preflight was unsafe")
+        elif preflight is not None and preflight.state is ServiceActivationState.READY and preflight.verified is not True:
+            updated = replace(plan, state=DeploymentState.FAILED, reason="service activation preflight was not verified")
+        elif preflight is not None and preflight.state is not ServiceActivationState.READY:
+            activation_state = (
+                DeploymentState.BLOCKED
+                if preflight.state is ServiceActivationState.BLOCKED_BY_DEFAULT
+                else DeploymentState.FAILED
+            )
+            updated = replace(plan, state=activation_state, reason=f"service activation: {preflight.result}")
         elif not self.provider_enabled or self.provider is None:
             updated = replace(plan, state=DeploymentState.BLOCKED, reason="production deployment is disabled")
         elif (
@@ -251,11 +276,35 @@ class DeploymentManager:
                 except Exception:
                     validation = None
                 if _valid_validation(validation):
-                    updated = replace(
-                        plan,
-                        state=DeploymentState.VERIFIED,
-                        reason=f"{evidence.result}; {validation.result}",
-                    )
+                    activation = self._activate_service(plan)
+                    if activation is not None and not _valid_activation_evidence(activation, self._activation_request(plan)):
+                        updated = replace(
+                            plan,
+                            state=DeploymentState.FAILED,
+                            reason="service activation evidence was unsafe",
+                        )
+                    elif activation is not None and activation.state is ServiceActivationState.ACTIVATED and activation.verified is not True:
+                        updated = replace(
+                            plan,
+                            state=DeploymentState.FAILED,
+                            reason="service activation evidence was not verified",
+                        )
+                    elif activation is not None and activation.state is not ServiceActivationState.ACTIVATED:
+                        activation_state = (
+                            DeploymentState.BLOCKED
+                            if activation.state is ServiceActivationState.BLOCKED_BY_DEFAULT
+                            else DeploymentState.FAILED
+                        )
+                        updated = replace(
+                            plan,
+                            state=activation_state,
+                            reason=f"service activation: {activation.result}",
+                        )
+                    else:
+                        reason = f"{evidence.result}; {validation.result}"
+                        if activation is not None:
+                            reason = f"{reason}; {activation.result}"
+                        updated = replace(plan, state=DeploymentState.VERIFIED, reason=reason)
                 else:
                     updated = replace(
                         plan,
@@ -289,6 +338,47 @@ class DeploymentManager:
             },
         )
         return updated
+
+    def _preflight_service(self, plan: DeploymentPlan) -> ServiceActivationEvidence:
+        try:
+            return self.service_activation.preflight(request=self._activation_request(plan))  # type: ignore[union-attr]
+        except Exception:
+            return ServiceActivationEvidence(
+                provider="service-activation",
+                unit=DEFAULT_SERVICE_UNIT,
+                operation="deploy",
+                state=ServiceActivationState.FAILED,
+                result="service activation preflight failed",
+                verified=False,
+            )
+
+    def _activation_request(self, plan: DeploymentPlan) -> ServiceActivationRequest:
+        return ServiceActivationRequest(
+            unit=DEFAULT_SERVICE_UNIT,
+            project=plan.project,
+            operation="deploy",
+            release=plan.commit,
+            requested_by=plan.requested_by,
+            approved_by=plan.approved_by or "",
+            approval_reference=plan.approval_id or plan.deployment_id,
+        )
+
+    def _activate_service(self, plan: DeploymentPlan) -> ServiceActivationEvidence | None:
+        if self.service_activation is None:
+            return None
+        try:
+            return self.service_activation.activate(
+                request=self._activation_request(plan)
+            )
+        except Exception:
+            return ServiceActivationEvidence(
+                provider="service-activation",
+                unit=DEFAULT_SERVICE_UNIT,
+                operation="deploy",
+                state=ServiceActivationState.FAILED,
+                result="service activation provider failed",
+                verified=False,
+            )
 
     def _get(self, deployment_id: str) -> DeploymentPlan:
         try:
@@ -332,6 +422,25 @@ def _valid_validation(value: object) -> bool:
         for item in fields
     ) and value.verified is True
 
+def _valid_activation_evidence(value: object, request: ServiceActivationRequest) -> bool:
+    if not isinstance(value, ServiceActivationEvidence):
+        return False
+    fields = (value.provider, value.unit, value.operation, value.result)
+    return (
+        isinstance(value.state, ServiceActivationState)
+        and isinstance(value.verified, bool)
+        and value.unit == request.unit
+        and value.operation == request.operation
+        and all(
+            isinstance(item, str)
+            and item.strip()
+            and len(item) <= 512
+            and not contains_secret(item)
+            and RAW_STREAM_PATTERN.search(item) is None
+            and not any(ord(character) < 32 for character in item)
+            for item in fields
+        )
+    )
 
 def _encode_plan(plan: DeploymentPlan) -> dict[str, object]:
     return {

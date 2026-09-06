@@ -50,6 +50,11 @@ class ReadOnlyWebApiTests(unittest.TestCase):
         self.assertFalse(payload["runtime"]["liveData"])
         self.assertEqual(payload["dataSource"]["backend"], True)
         self.assertEqual(payload["product"]["executionStatus"], "Ejecución real bloqueada")
+        activation = payload["runtime"]["serviceActivation"]
+        self.assertEqual(activation["state"], "blocked_by_default")
+        self.assertEqual(activation["serviceUnit"], "cibermedida-vps-control-center.service")
+        self.assertEqual(activation["operations"], ["deploy", "rollback"])
+        self.assertFalse(activation["runnerConfigured"])
 
     def test_status_reflects_an_explicitly_enabled_provider_without_running_it(self) -> None:
         class DeclaredProvider:

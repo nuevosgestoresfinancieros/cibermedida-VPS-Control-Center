@@ -33,6 +33,8 @@ class ControlCenterVNextContractTests(unittest.TestCase):
         self.assertIn('data-sidebar-toggle', html)
         self.assertIn('data-sidebar-context-copy', html)
         self.assertIn('data-detail-drawer', html)
+        self.assertIn('id="client-guide"', html)
+        self.assertIn("Guía para el cliente", html)
         self.assertIn("Ejecución real bloqueada", html)
         self.assertIn("blocked_by_default", html)
         self.assertIn("navigationGroups", javascript)
@@ -43,6 +45,15 @@ class ControlCenterVNextContractTests(unittest.TestCase):
         self.assertNotIn("localStorage", javascript)
         self.assertNotIn("sessionStorage", javascript)
         self.assertNotIn("shell=True", javascript)
+
+    def test_client_guide_is_part_of_the_static_contract(self) -> None:
+        payload = json.loads((WEB_ROOT / "data" / "status.json").read_text(encoding="utf-8"))
+        navigation_targets = {item["target"] for item in payload["navigation"]}
+        self.assertIn("client-guide", navigation_targets)
+        document = (ROOT / "docs" / "client-guide.md").read_text(encoding="utf-8")
+        self.assertIn("# Guía para el cliente", document)
+        self.assertIn("blocked_by_default", document)
+        self.assertIn("sin ejecutar comandos reales", document)
 
     def test_documentation_describes_current_boundaries(self) -> None:
         architecture = (ROOT / "docs" / "CURRENT_ARCHITECTURE.md").read_text(encoding="utf-8")

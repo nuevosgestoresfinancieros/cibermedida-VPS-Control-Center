@@ -156,6 +156,82 @@
         <div class="hero-grid" data-phases></div>
       </section>
 
+      <section id="client-guide" class="page-section" aria-labelledby="client-guide-title">
+        <div class="section-intro">
+          <p class="eyebrow">Guía para el cliente</p>
+          <h2 id="client-guide-title">Qué hace este programa</h2>
+          <p class="section-description">Una explicación breve del propósito, el alcance actual y los límites de seguridad del Control Center.</p>
+        </div>
+        <article class="panel client-guide-lead">
+          <div class="section-heading">
+            <p class="eyebrow">En una frase</p>
+            <h3>Visibilidad controlada del VPS</h3>
+          </div>
+          <p>El Cibermedida VPS Control Center centraliza información operativa autorizada, controles de seguridad y trazabilidad para que el estado del entorno pueda revisarse desde una única interfaz.</p>
+          <p>La aplicación está diseñada para informar y preparar decisiones de forma segura. No convierte una solicitud en una acción de producción por sí sola.</p>
+        </article>
+        <div class="client-guide-grid">
+          <article class="panel client-guide-card">
+            <div class="section-heading">
+              <p class="eyebrow">Utilidad</p>
+              <h3>Para qué sirve</h3>
+            </div>
+            <ul>
+              <li>Consultar el estado general, las capacidades y la salud interna disponible.</li>
+              <li>Revisar inventario y monitorización únicamente mediante proveedores READ_SAFE autorizados.</li>
+              <li>Entender políticas, aprobaciones, planes, validaciones y eventos de auditoría.</li>
+              <li>Ver proyectos y metadatos de Git sin hacer push, merge ni cambios desde la web.</li>
+            </ul>
+          </article>
+          <article class="panel client-guide-card">
+            <div class="section-heading">
+              <p class="eyebrow">Resultado</p>
+              <h3>Qué aporta al cliente</h3>
+            </div>
+            <ul>
+              <li>Una vista única y ordenada de la situación del entorno.</li>
+              <li>Separación entre consulta, autorización y ejecución.</li>
+              <li>Decisiones explicables mediante policy, riesgo y aprobación.</li>
+              <li>Trazabilidad basada en metadatos, sin exponer contenido sensible.</li>
+            </ul>
+          </article>
+          <article class="panel client-guide-card">
+            <div class="section-heading">
+              <p class="eyebrow">Cómo funciona</p>
+              <h3>Cadena de control</h3>
+            </div>
+            <ol class="client-guide-steps">
+              <li><strong>Policy:</strong> clasifica la solicitud y calcula su decisión.</li>
+              <li><strong>Approval:</strong> exige autorización independiente cuando corresponde.</li>
+              <li><strong>Plan:</strong> fija la acción, el alcance, el riesgo y la identidad.</li>
+              <li><strong>Dry-run:</strong> comprueba el plan sin ejecutar comandos.</li>
+              <li><strong>ExecutionGate:</strong> vuelve a validar la elegibilidad.</li>
+              <li><strong>ControlledExecutor:</strong> permanece bloqueado por defecto.</li>
+            </ol>
+          </article>
+          <article class="panel client-guide-card">
+            <div class="section-heading">
+              <p class="eyebrow">Lectura de estados</p>
+              <h3>Qué significa cada resultado</h3>
+            </div>
+            <dl class="client-guide-status-list">
+              <div><dt>READ_SAFE</dt><dd>Consulta autorizada y limitada a metadatos.</dd></div>
+              <div><dt>approval_required</dt><dd>Requiere revisión y aprobación antes de continuar.</dd></div>
+              <div><dt>deny</dt><dd>La política rechaza la solicitud.</dd></div>
+              <div><dt>blocked_by_default</dt><dd>La capacidad existe como contrato, pero no está habilitada para operar.</dd></div>
+            </dl>
+          </article>
+        </div>
+        <article class="panel client-guide-boundaries">
+          <div class="section-heading">
+            <p class="eyebrow">Protección</p>
+            <h3>Qué permanece bloqueado</h3>
+          </div>
+          <p>Por diseño, la instalación no permite desde esta interfaz la ejecución real, el acceso elevado, los despliegues, los rollback, la modificación de servicios, la exposición de secretos, la lectura de logs crudos, backups o bases de datos, ni la creación automática de <code>INVENTORY.json</code>.</p>
+          <p>Estas restricciones son parte del contrato de seguridad y no indican un fallo de la aplicación. Cualquier ampliación futura tendría que definir permisos, alcance, caducidad, validación posterior y aprobación independiente.</p>
+        </article>
+        <p class="client-guide-footnote" role="note">Esta guía es informativa. Leerla no inicia operaciones ni cambia el estado del servidor.</p>
+      </section>
       <section id="capabilities" class="page-section" aria-labelledby="capabilities-title">
         <div class="section-intro">
           <p class="eyebrow">Capacidades</p>

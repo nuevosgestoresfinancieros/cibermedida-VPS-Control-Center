@@ -111,6 +111,10 @@
     {
       "label": "Fuente de datos",
       "target": "data-source"
+    },
+    {
+      "label": "Guía para el cliente",
+      "target": "client-guide"
     }
   ],
   "phases": [

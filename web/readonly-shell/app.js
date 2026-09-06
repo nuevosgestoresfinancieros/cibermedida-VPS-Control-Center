@@ -48,6 +48,10 @@ const fallbackStatus = {
     {
       "label": "Fuente de datos",
       "target": "data-source"
+    },
+    {
+      "label": "Guía para el cliente",
+      "target": "client-guide"
     }
   ],
   "phases": [
@@ -637,6 +641,12 @@ const navigationGroups = [
       "safety-boundaries", "security", "agents", "configuration", "v3-intelligence", "data-source",
     ],
   },
+  {
+    label: "Ayuda",
+    title: "Documentación del cliente",
+    description: "Qué hace el sistema, qué muestra y qué permanece bloqueado.",
+    targets: ["client-guide"],
+  },
 ];
 
 const navigationIcons = {
@@ -664,6 +674,7 @@ const navigationIcons = {
   configuration: "CF",
   "v3-intelligence": "V3",
   "data-source": "DT",
+  "client-guide": "GU",
 };
 
 const text = (value) => document.createTextNode(String(value));

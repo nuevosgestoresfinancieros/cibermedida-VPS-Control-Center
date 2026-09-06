@@ -11,7 +11,7 @@ WorkingDirectory=/var/www/cibermedida-vps-control-center
 Environment=PYTHONDONTWRITEBYTECODE=1
 StateDirectory=cibermedida-vps-control-center
 StateDirectoryMode=0750
-ExecStart=/usr/bin/python3 -m api.readonly_server --host 127.0.0.1 --port 8766 --secure-cookies --https-terminated --state-root /var/lib/cibermedida-vps-control-center
+ExecStart=/usr/bin/python3 -m api.readonly_server --host 127.0.0.1 --port 8766 --secure-cookies --https-terminated --state-root /var/lib/cibermedida-vps-control-center --activation-manifest /var/lib/cibermedida-vps-control-center/read-safe-activation.json --read-safe-monitoring --read-safe-inventory --read-safe-projects
 Restart=on-failure
 RestartSec=5s
 UMask=0027

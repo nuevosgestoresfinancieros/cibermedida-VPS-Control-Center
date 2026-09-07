@@ -14,7 +14,8 @@ const fallbackStatus = {
       "operations": ["deploy", "rollback"],
       "enabled": false,
       "runnerConfigured": false
-    }
+    },
+    "publishedProjects": "blocked_by_default"
   },
   "navigation": [
     {
@@ -1265,7 +1266,7 @@ function bindNavigationTools() {
   });
 }
 
-function renderOperationalSections(views) {
+function renderOperationalSections(views, status) {
   const container = document.querySelector("[data-operational-sections]");
   clear(container);
   if (!Array.isArray(views) || views.length === 0) {
@@ -1323,7 +1324,7 @@ function renderOperationalSections(views) {
     } else if (view.id === "server") {
       appendInventoryPanel(panel);
     } else if (view.id === "projects") {
-      appendProjectsPanel(panel);
+      appendProjectsPanel(panel, status);
     } else if (view.id === "incidents") {
       appendIncidentPanel(panel);
     } else if (view.id === "audit-preview") {
@@ -1867,7 +1868,7 @@ function appendInventoryPanel(panel) {
   panel.append(heading, note, form, result, details);
 }
 
-function appendProjectsPanel(panel) {
+function appendProjectsPanel(panel, staticStatus = {}) {
   const { heading, form, result } = workflowForm("Proyectos y Git READ_SAFE");
   const note = document.createElement("p");
   note.className = "workflow-note";
@@ -1890,6 +1891,27 @@ function appendProjectsPanel(panel) {
   listResult.setAttribute("role", "status");
   listResult.setAttribute("aria-live", "polite");
 
+  const publishedHeading = document.createElement("div");
+  publishedHeading.className = "section-heading published-projects-heading";
+  const publishedEyebrow = document.createElement("p");
+  publishedEyebrow.className = "eyebrow";
+  publishedEyebrow.appendChild(text("Aplicaciones publicadas"));
+  const publishedTitle = document.createElement("h3");
+  publishedTitle.appendChild(text("Directorios publicados en /var/www"));
+  publishedHeading.append(publishedEyebrow, publishedTitle);
+  const publishedNote = document.createElement("p");
+  publishedNote.className = "workflow-note published-projects-note";
+  publishedNote.appendChild(
+    text(
+      "Solo se muestran nombres de directorios directos y marcadores tecnológicos seguros. No se abren archivos, no se recorre el árbol y no se siguen enlaces simbólicos."
+    )
+  );
+  const publishedList = document.createElement("div");
+  publishedList.className = "workflow-published-projects";
+  const publishedResult = document.createElement("p");
+  publishedResult.className = "workflow-result";
+  publishedResult.setAttribute("role", "status");
+  publishedResult.setAttribute("aria-live", "polite");
   function renderProjects(projects) {
     clear(list);
     if (!Array.isArray(projects) || projects.length === 0) {
@@ -1926,8 +1948,67 @@ function appendProjectsPanel(panel) {
     });
   }
 
+  function renderPublishedProjects(payload) {
+    clear(publishedList);
+    const projects = payload && Array.isArray(payload.projects) ? payload.projects : [];
+    if (projects.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.appendChild(
+        text(
+          payload && payload.state === "blocked_by_default"
+            ? "El catálogo de aplicaciones publicadas está bloqueado hasta su activación explícita."
+            : "No se han detectado aplicaciones publicadas con este provider."
+        )
+      );
+      publishedList.appendChild(empty);
+      showWorkflowResult(
+        publishedResult,
+        payload && payload.reason ? payload.reason : "No hay datos del catálogo."
+      );
+      return;
+    }
+    const table = createCompactTable(
+      "Aplicaciones publicadas en /var/www",
+      ["Aplicación", "Ruta", "Tipo", "Git", "Marcadores", "Estado"]
+    );
+    const body = table.querySelector("tbody");
+    const root = String((payload && payload.root) || "/var/www").replace(/\/+$/, "") || "/var/www";
+    const kindLabels = {
+      node: "Node.js",
+      python: "Python",
+      php: "PHP",
+      rust: "Rust",
+      go: "Go",
+      web: "Web",
+      git: "Git",
+      directory: "Directorio"
+    };
+    projects.forEach((project) => {
+      const row = document.createElement("tr");
+      const name = project && project.name ? project.name : "Aplicación";
+      const relative = String((project && (project.relative_path || project.name)) || "").replace(/^\/+/, "");
+      const route = relative ? `${root}/${relative}` : root;
+      const markers = project && Array.isArray(project.markers) && project.markers.length
+        ? project.markers.join(", ")
+        : "ninguno";
+      appendTableCell(row, name, "table-primary");
+      appendTableCell(row, route, "code-cell");
+      appendTableCell(row, kindLabels[project && project.kind] || "Directorio");
+      appendTableCell(row, project && project.git_repository ? "sí" : "no");
+      appendTableCell(row, markers, "table-muted");
+      appendTableCell(row, project && project.state ? project.state : "detectado", "status-cell");
+      body?.appendChild(row);
+    });
+    publishedList.appendChild(table);
+    const skipped = payload && Number.isInteger(payload.skipped_entries) ? payload.skipped_entries : 0;
+    showWorkflowResult(
+      publishedResult,
+      `${projects.length} aplicaciones detectadas en ${root}. ${skipped} entradas omitidas por seguridad.`
+    );
+  }
   async function refreshProjects() {
-    showWorkflowResult(listResult, "Consultando catálogo de proyectos metadata-only...");
+    showWorkflowResult(listResult, "Consultando catálogos metadata-only...");
     try {
       const response = await fetch("/api/projects", { credentials: "same-origin", cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
@@ -1935,13 +2016,40 @@ function appendProjectsPanel(panel) {
       renderProjects(payload.projects);
       showWorkflowResult(
         listResult,
-        (Array.isArray(payload.projects) ? payload.projects.length : 0) + " proyectos disponibles."
+        (Array.isArray(payload.projects) ? payload.projects.length : 0) + " proyectos declarados disponibles."
       );
+      try {
+        const publishedResponse = await fetch("/api/projects/published", { credentials: "same-origin", cache: "no-store" });
+        const publishedPayload = await publishedResponse.json().catch(() => ({}));
+        if (!publishedResponse.ok) {
+          renderPublishedProjects(staticStatus.publishedProjects || {});
+          showWorkflowResult(
+            publishedResult,
+            publishedPayload.error || "El catálogo publicado requiere una sesión autorizada."
+          );
+        } else {
+          renderPublishedProjects(publishedPayload);
+        }
+      } catch (_error) {
+        renderPublishedProjects(staticStatus.publishedProjects || {});
+        showWorkflowResult(
+          publishedResult,
+          "El catálogo publicado no está disponible; se conserva el estado seguro incluido."
+        );
+      }
     } catch (error) {
       showWorkflowResult(listResult, error.message);
     }
   }
 
+  renderPublishedProjects(
+    staticStatus.publishedProjects || {
+      state: "blocked_by_default",
+      root: "/var/www",
+      projects: [],
+      reason: "El catálogo de publicaciones requiere activación explícita."
+    }
+  );
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     showWorkflowResult(result, "Validando autorización y recopilando metadatos Git READ_SAFE...");
@@ -1960,7 +2068,7 @@ function appendProjectsPanel(panel) {
     event.preventDefault();
     await refreshProjects();
   });
-  panel.append(heading, note, form, result, refreshForm, list, listResult);
+  panel.append(heading, note, form, result, refreshForm, list, listResult, publishedHeading, publishedNote, publishedList, publishedResult);
 }
 
 function appendIncidentPanel(panel) {
@@ -2366,7 +2474,7 @@ function render(status, source) {
   renderServiceActivation(status.runtime);
   renderCapabilities(status.capabilities);
   renderDashboardVisuals(status.dashboard);
-  renderOperationalSections(status.views);
+  renderOperationalSections(status.views, status);
   updateCurrentNavigation();
   const readinessPanel = document.querySelector("[data-readiness-panel]");
   if (readinessPanel && !readinessPanel.dataset.bound) {

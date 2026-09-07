@@ -76,6 +76,15 @@ from .projects import (
     ReadSafeProjectProvider,
     SyntheticProjectProvider,
 )
+from .published_projects import (
+    PublishedProjectProvider,
+    PublishedProjectCatalogResult,
+    PublishedProjectCatalogService,
+    PublishedProjectCatalogState,
+    PublishedProjectEvidence,
+    PublishedProjectRecord,
+    ReadSafePublishedProjectsProvider,
+)
 from .rollbacks import RollbackManager, RollbackPlan, RollbackProvider, RollbackProviderEvidence, RollbackState
 from .service_activation import (
     DEFAULT_SERVICE_UNIT,
@@ -210,6 +219,13 @@ __all__ = [
     "ProjectService",
     "ReadSafeProjectProvider",
     "SyntheticProjectProvider",
+    "PublishedProjectProvider",
+    "PublishedProjectCatalogResult",
+    "PublishedProjectCatalogService",
+    "PublishedProjectCatalogState",
+    "PublishedProjectEvidence",
+    "PublishedProjectRecord",
+    "ReadSafePublishedProjectsProvider",
     "InProcessTestProvider",
     "SyntheticTestProvider",
     "TestEvidence",

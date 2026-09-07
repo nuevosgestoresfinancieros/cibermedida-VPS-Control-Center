@@ -42,6 +42,7 @@ from control_center import (
     ReadSafeExecutionProvider,
     ReadSafeMonitoringProvider,
     ReadSafeProjectProvider,
+    ReadSafePublishedProjectsProvider,
     SyntheticReadSafeExecutionProvider,
     SyntheticReadSafeMonitoringProvider,
     SyntheticInventoryProvider,
@@ -166,14 +167,21 @@ def build_api_status(application: ControlCenterApplication | None = None) -> dic
     projects_live = bool(
         projects_enabled and getattr(application.projects.provider, "live_data", False)
     )
+    published_projects_enabled = bool(
+        application and application.published_projects.provider_enabled and application.published_projects.provider
+    )
+    published_projects_live = bool(
+        published_projects_enabled and getattr(application.published_projects.provider, "live_data", False)
+    )
     status["runtime"] = {
         "serviceActivation": build_service_activation_status(application),
         "transport": "local-readonly-api",
-        "liveData": monitoring_live or inventory_live or projects_live,
+        "liveData": monitoring_live or inventory_live or projects_live or published_projects_live,
         "execution": "provider_enabled" if execution_enabled else "blocked_by_default",
         "monitoring": "provider_enabled" if monitoring_enabled else "snapshot_only",
         "inventory": "provider_enabled" if inventory_enabled else "blocked_by_default",
         "projects": "provider_enabled" if projects_enabled else "mock_catalog",
+        "publishedProjects": "provider_enabled" if published_projects_enabled else "blocked_by_default",
         "testing": "provider_enabled" if testing_enabled else "contract_only",
         "builds": "provider_enabled" if builds_enabled else "contract_only",
         "codex": "provider_enabled" if codex_enabled else "contract_only",
@@ -186,7 +194,9 @@ def build_api_status(application: ControlCenterApplication | None = None) -> dic
         if execution_enabled
         else "Ejecución real bloqueada"
     )
-    live_read_safe = monitoring_live or inventory_live or projects_live
+    live_read_safe = monitoring_live or inventory_live or projects_live or published_projects_live
+    if application is not None:
+        status["publishedProjects"] = jsonable(application.published_projects.public_status())
     status["dataSource"] = {
         "mode": "API local solo lectura con proveedor READ_SAFE" if live_read_safe else "API local solo lectura con datos simulados",
         "path": "/api/status -> web/readonly-shell/data/status.json",
@@ -417,6 +427,21 @@ class ReadOnlyHandler(SimpleHTTPRequestHandler):
                     )
                 else:
                     self._send_json({"projects": build_projects(), "liveData": False})
+            elif path == "/api/projects/published":
+                provider = self.application.published_projects.provider
+                if self.application.published_projects.provider_enabled and provider is not None:
+                    self._require(Permission.VIEW_PROJECTS)
+                    self._require_live_provider(
+                        provider,
+                        "phase3-read-safe-published-projects"
+                        if getattr(provider, "live_data", False)
+                        else None,
+                        required_permission=Permission.VIEW_PROJECTS,
+                    )
+                    result = self.application.published_projects.collect(session_id=self._session_id())
+                else:
+                    result = self.application.published_projects.status()
+                self._send_json(jsonable(result))
             elif path.startswith("/api/projects/") and path.endswith("/status"):
                 project_id = path.removeprefix("/api/projects/").removesuffix("/status").strip("/")
                 provider = self.application.projects.provider
@@ -1851,6 +1876,12 @@ def main() -> None:
         help="Habilita colección explícita READ_SAFE de rama, estado y HEAD Git",
     )
     parser.add_argument(
+        "--read-safe-published-projects-root",
+        type=Path,
+        metavar="/var/www",
+        help="Habilita catálogo READ_SAFE de directorios directos de /var/www; no abre archivos ni sigue enlaces",
+    )
+    parser.add_argument(
         "--run-repository-tests",
         action="store_true",
         help="Habilita la ejecución acotada del conjunto unittest del repositorio",
@@ -1951,6 +1982,7 @@ def main() -> None:
                 args.activation_manifest,
                 args.state_root,
                 args.build_root,
+                args.read_safe_published_projects_root,
             )
         )
         or args.https_terminated
@@ -1985,6 +2017,8 @@ def main() -> None:
         requested_provider_ids.append("phase1-read-safe-inventory")
     if args.read_safe_projects:
         requested_provider_ids.append("phase1-read-safe-projects")
+    if args.read_safe_published_projects_root is not None:
+        requested_provider_ids.append("phase3-read-safe-published-projects")
     if args.run_repository_tests:
         requested_provider_ids.append("repository-tests")
     if args.build_root or args.build_profile:
@@ -2142,6 +2176,12 @@ def main() -> None:
         project_provider = ReadSafeProjectProvider(executor=RestrictedExecutor())
     elif args.lab_mode:
         project_provider = SyntheticProjectProvider()
+    published_projects_provider = None
+    if args.read_safe_published_projects_root is not None:
+        try:
+            published_projects_provider = ReadSafePublishedProjectsProvider(args.read_safe_published_projects_root)
+        except ValueError as exc:
+            parser.error(str(exc))
     test_provider = None
     if args.run_repository_tests and not args.lab_mode:
         test_provider = InProcessTestProvider(
@@ -2214,6 +2254,8 @@ def main() -> None:
         project_provider=project_provider,
         projects_enabled=project_provider is not None,
         projects_state_store=projects_state_store,
+        published_projects_provider=published_projects_provider,
+        published_projects_enabled=published_projects_provider is not None,
         test_provider=test_provider,
         tests_enabled=test_provider is not None,
         tests_state_store=tests_state_store,
@@ -2247,6 +2289,7 @@ def main() -> None:
                 release_provider,
                 chat_provider,
                 project_provider,
+                published_projects_provider,
                 test_provider,
                 build_provider,
                 codex_provider,

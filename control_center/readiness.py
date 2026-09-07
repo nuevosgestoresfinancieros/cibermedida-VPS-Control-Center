@@ -346,6 +346,11 @@ def _activation_requirements(application: "ControlCenterApplication") -> tuple[s
         ("VIEW_INVENTORY_METADATA", "RUN_READ_SAFE"),
     )
     require(
+        application.published_projects.provider,
+        application.published_projects.provider_enabled,
+        ("VIEW_PROJECTS",),
+    )
+    require(
         application.tests.provider,
         application.tests.provider_enabled,
         ("VIEW_CORE_OPERATOR", "RUN_TESTS"),

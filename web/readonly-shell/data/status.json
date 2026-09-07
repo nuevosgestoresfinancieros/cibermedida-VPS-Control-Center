@@ -17,7 +17,19 @@
       ],
       "enabled": false,
       "runnerConfigured": false
-    }
+    },
+    "publishedProjects": "blocked_by_default"
+  },
+  "publishedProjects": {
+    "state": "blocked_by_default",
+    "provider": null,
+    "live_data": false,
+    "root": "/var/www",
+    "scope": "direct_children_only",
+    "projects": [],
+    "skipped_entries": 0,
+    "reason": "El catálogo de publicaciones requiere activación explícita.",
+    "collected_at": ""
   },
   "navigation": [
     {
@@ -495,12 +507,13 @@
       "id": "projects",
       "label": "Proyectos",
       "eyebrow": "Inventario de proyectos",
-      "title": "Proyectos y Git declarados",
+      "title": "Proyectos y aplicaciones publicadas",
       "state": "read_only",
-      "summary": "La API puede recoger únicamente rama, estado y HEAD mediante un proveedor READ_SAFE explícito.",
+      "summary": "La API puede recoger el proyecto declarado y enumerar aplicaciones publicadas mediante providers READ_SAFE explícitos.",
       "items": [
         "La colección no devuelve stdout ni stderr crudos.",
         "No se crean ramas, no se hace push y no se ejecuta merge.",
+        "El catálogo de publicaciones solo enumera directorios directos de /var/www y marcadores seguros.",
         "Sin proveedor habilitado, el estado permanece blocked_by_default."
       ]
     },

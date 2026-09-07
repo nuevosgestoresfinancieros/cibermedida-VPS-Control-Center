@@ -30,6 +30,7 @@ from .monitoring import MonitoringProvider, MonitoringService
 from .operations import OperationService
 from .pipeline import ExecutionPipelineService
 from .projects import ProjectProvider, ProjectService
+from .published_projects import PublishedProjectCatalogService, PublishedProjectProvider
 from .rollbacks import RollbackManager, RollbackProvider
 from .service_activation import ServiceActivationProvider
 from .state import JsonMetadataStore
@@ -75,6 +76,8 @@ class ControlCenterApplication:
         project_provider: ProjectProvider | None = None,
         projects_enabled: bool = False,
         projects_state_store: JsonMetadataStore | None = None,
+        published_projects_provider: PublishedProjectProvider | None = None,
+        published_projects_enabled: bool = False,
         test_provider: TestProvider | None = None,
         tests_enabled: bool = False,
         tests_state_store: JsonMetadataStore | None = None,
@@ -115,6 +118,12 @@ class ControlCenterApplication:
             provider=project_provider,
             provider_enabled=projects_enabled,
             state_store=projects_state_store,
+        )
+        self.published_projects = PublishedProjectCatalogService(
+            auth=self.auth,
+            audit=self.audit,
+            provider=published_projects_provider,
+            provider_enabled=published_projects_enabled,
         )
         self.tests = TestService(
             auth=self.auth,
@@ -220,6 +229,8 @@ class ControlCenterApplication:
             inventory_enabled=inventory_enabled,
             project_provider=project_provider,
             projects_enabled=projects_enabled,
+            published_projects_provider=published_projects_provider,
+            published_projects_enabled=published_projects_enabled,
             test_provider=test_provider,
             tests_enabled=tests_enabled,
             build_provider=build_provider,

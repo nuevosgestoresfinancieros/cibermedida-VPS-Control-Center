@@ -37,6 +37,8 @@ class CapabilityRegistry:
         inventory_enabled: bool = False,
         project_provider: Any = None,
         projects_enabled: bool = False,
+        published_projects_provider: Any = None,
+        published_projects_enabled: bool = False,
         test_provider: Any = None,
         tests_enabled: bool = False,
         build_provider: Any = None,
@@ -57,6 +59,11 @@ class CapabilityRegistry:
         project_state = (
             getattr(project_provider, "name", None)
             if projects_enabled and project_provider is not None
+            else None
+        )
+        published_projects_state = (
+            getattr(published_projects_provider, "name", None)
+            if published_projects_enabled and published_projects_provider is not None
             else None
         )
         test_state = (
@@ -187,6 +194,17 @@ class CapabilityRegistry:
                 "Lee únicamente rama, estado sucio y HEAD mediante la allowlist Git; nunca modifica el repositorio."
                 if project_state
                 else "Catálogo mock; la colección Git requiere un provider explícito.",
+            ),
+            CapabilityStatus(
+                "published_projects",
+                "Aplicaciones publicadas",
+                "Fase 3",
+                "provider_enabled" if published_projects_state else "blocked_by_default",
+                bool(published_projects_state and getattr(published_projects_provider, "live_data", False)),
+                published_projects_state,
+                "Enumera solo directorios directos de /var/www y marcadores de tecnología; no abre archivos ni sigue enlaces simbólicos."
+                if published_projects_state
+                else "Requiere una raíz /var/www y activación explícitas; permanece bloqueado por defecto.",
             ),
             CapabilityStatus(
                 "testing",

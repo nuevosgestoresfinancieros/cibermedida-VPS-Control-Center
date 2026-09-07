@@ -857,6 +857,21 @@ th {
   font-size: 0.95rem;
 }
 
+.workflow-published-projects {
+  width: 100%;
+  max-width: 1100px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+.workflow-published-projects .compact-table {
+  min-width: 720px;
+}
+.published-projects-heading {
+  margin-top: 24px;
+}
+.published-projects-note {
+  max-width: 900px;
+}
 .readiness-result {
   max-width: 900px;
   margin: 0;
